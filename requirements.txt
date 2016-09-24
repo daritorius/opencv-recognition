@@ -1,0 +1,5 @@
+# virtualenv .env --system-site-packages
+# pip install -I numpy matplotlib
+numpy
+matplotlib
+pillow
