@@ -76,9 +76,9 @@ def find_faces():
             number_predicted, conf = recognizer.predict(image[y: y + h, x: x + w])
             number_actual = int(image_path.split("_")[-1].split('.')[0])
             if number_actual == number_predicted:
-                print "{} is Correctly Recognized with confidence {}".format(number_actual, conf)
+                print("{} is Correctly Recognized with confidence {}".format(number_actual, conf))
             else:
-                print "{} is Incorrect Recognized as {}".format(number_actual, number_predicted)
+                print("{} is Incorrect Recognized as {}".format(number_actual, number_predicted))
             cv2.imshow("Recognizing Face", image[y: y + h, x: x + w])
             cv2.waitKey(1000)
 
