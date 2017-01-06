@@ -1,20 +1,25 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
+
+import argparse
 import os
 import random
 import string
 from multiprocessing import Process
 from subprocess import call
 from time import sleep
+
+import requests
 from PIL import Image
 
 import cv2
 import datetime
 import glob
+import base64
 
 from multiprocessing import cpu_count, Manager
 
-
+camera_port = 0
 camera = None
 
 image_width = 0
@@ -29,7 +34,13 @@ user_api_key = "eb2d06b672c81a0c5ce490840b4abf7082113c9efdb4ec66f944dc3f81f52b00
                "29d77180093fc102ebf8bd982bcc36FE9KuyBpl1D"
 user_id = 1
 user_email = "dm.sokoly@gmail.com"
+base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), ''))
 base_image_path = os.path.abspath(os.path.join(os.path.dirname(__file__), 'media/security'))
+
+time_delay = 15
+
+movement_time = None
+debug = False
 
 
 def get_camera_params():
@@ -142,6 +153,29 @@ def check_motion(array1, array2):
     return motion_detected
 
 
+def get_image_string(image_media_path):
+    with open(image_media_path, 'rb') as image_file:
+        encoded_string = base64.b64encode(image_file.read())
+    return encoded_string
+
+
+def send_notification(image_string):
+    data = {
+        "user_id": user_id,
+        "api_key": user_api_key,
+        "email": user_email,
+        "image": image_string,
+    }
+    try:
+        print("Sending notification...")
+        response = requests.post(api_host, data=data)
+    except Exception:
+        import traceback
+        print(traceback.format_exc())
+    else:
+        print("Notification sent: %i" % response.status_code)
+
+
 def remove_image(image_media_path):
     os.remove(image_media_path)
 
@@ -153,21 +187,58 @@ def clean_images():
 
 
 if __name__ == "__main__":
+    print("Parsing args...")
+    # parse args
+    parser = argparse.ArgumentParser(description='Process camera settings.')
+    parser.add_argument('--port', metavar='N', nargs='+', type=int,
+                        help='Camera index in your system. Main camera is usually equal to 0.')
+    parser.add_argument('--debug', metavar='N', nargs='+', type=int,
+                        help='Debug settings 0|1, default: 0.')
+    parser.add_argument('--delay', metavar='N', nargs='+', type=int,
+                        help='Delay between notifications in minutes.')
+    args = parser.parse_args()
+    if args.port is not None:
+        camera_port = args.port[0]
+    if args.debug is not None:
+        debug = False if not args.debug[0] else True
+    if args.delay is not None:
+        time_delay = args.delay[0]
+    print("Done.")
+    print("Setting up delay between messages to %i minutes." % time_delay)
+    print("Done.")
     try:
+        # remove all previous
+        print("Cleaning all cached images...")
         clean_images()
-        camera = cv2.VideoCapture(0)
+        print("Done.")
+        # init camera
+        print("Starting camera....")
+        camera = cv2.VideoCapture(camera_port)
         sleep(3)
-        get_camera_params()
+        if debug:
+            get_camera_params()
+        print("Done.")
+        print("Capturing initial image...")
         im, image_media_path = capture_image()
         image_resolution = get_image_resolution(image_media_path)
         image_width = image_resolution[0]
         image_height = image_resolution[1]
         sensitivity = int(image_width * image_height / number_processes * 0.10)
         start_array = current_array = read_image(image_media_path)
+        print("Done.")
+        print("Starting security process...")
         while True:
             current_array = read_image(image_media_path)
             if check_motion(start_array, current_array):
-                print("Movement")
+                if movement_time is None:
+                    movement_time = datetime.datetime.utcnow()
+                now = datetime.datetime.utcnow()
+                time_diff = int((now - movement_time).total_seconds() / 60)
+                if time_diff >= time_delay:
+                    movement_time = now
+                    print("Alert! Movement detected!")
+                    image_string = get_image_string(image_media_path)
+                    send_notification(image_string)
                 remove_image(image_media_path)
                 im, image_media_path = capture_image()
                 start_array = current_array
@@ -177,6 +248,8 @@ if __name__ == "__main__":
             start_array = current_array
     except KeyboardInterrupt:
         camera.release()
-        del (camera)
+    except Exception as e:
+        print(e)
+        camera.release()
     finally:
-        print('Bye')
+        print('Bye :)')
