@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 import os
+from time import sleep
+
 import cv
 import cv2
 import random
@@ -84,6 +86,6 @@ def find_faces():
 
 if __name__ == "__main__":
     capture_image()
-    train_face_recognition()
+    # train_face_recognition()
     capture_image()
-    find_faces()
+    # find_faces()
