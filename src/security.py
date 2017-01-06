@@ -252,4 +252,5 @@ if __name__ == "__main__":
         print(e)
         camera.release()
     finally:
+        clean_images()
         print('Bye :)')
