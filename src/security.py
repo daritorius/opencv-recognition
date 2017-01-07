@@ -187,13 +187,14 @@ def clean_images():
 
 
 if __name__ == "__main__":
+    print("This script will use %i cores of your CPU to analyze video stream." % number_processes)
     print("Parsing args...")
     # parse args
     parser = argparse.ArgumentParser(description='Process camera settings.')
     parser.add_argument('--port', metavar='N', nargs='+', type=int,
                         help='Camera index in your system. Main camera is usually equal to 0.')
     parser.add_argument('--debug', metavar='N', nargs='+', type=int,
-                        help='Debug settings 0|1, default: 0.')
+                        help='Debug settings 0|1, default is 0.')
     parser.add_argument('--delay', metavar='N', nargs='+', type=int,
                         help='Delay between notifications in minutes.')
     args = parser.parse_args()
