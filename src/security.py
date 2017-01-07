@@ -73,7 +73,7 @@ def capture_image():
     random_part = ''.join(random.choice(string.ascii_lowercase + string.digits) for _ in range(11))
     now = datetime.datetime.utcnow()
     image_time = now.strftime("%Y%m%d_%H%M%S")
-    image_media_path = "media/security/capture_%s_%s.jpg" % (random_part, image_time)
+    image_media_path = "media/security/capture_%s_%s_%i.jpg" % (random_part, image_time, camera_port)
     cv2.imwrite(image_media_path, im)
     return im, image_media_path
 
