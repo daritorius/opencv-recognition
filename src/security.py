@@ -215,6 +215,8 @@ if __name__ == "__main__":
         # init camera
         print("Starting camera....")
         camera = cv2.VideoCapture(camera_port)
+        camera.set(cv2.cv.CV_CAP_PROP_FRAME_WIDTH, 800)
+        camera.set(cv2.cv.CV_CAP_PROP_FRAME_HEIGHT, 600)
         sleep(3)
         if debug:
             get_camera_params()
