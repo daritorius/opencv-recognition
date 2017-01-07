@@ -209,8 +209,8 @@ if __name__ == "__main__":
     print("Done.")
     try:
         # remove all previous
-        print("Cleaning all cached images...")
-        clean_images()
+        # print("Cleaning all cached images...")
+        # clean_images()
         print("Done.")
         # init camera
         print("Starting camera....")
