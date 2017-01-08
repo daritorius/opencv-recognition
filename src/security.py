@@ -215,8 +215,8 @@ if __name__ == "__main__":
         # init camera
         print("Starting camera....")
         camera = cv2.VideoCapture(camera_port)
-        camera.set(cv2.cv.CV_CAP_PROP_FRAME_WIDTH, 800)
-        camera.set(cv2.cv.CV_CAP_PROP_FRAME_HEIGHT, 600)
+        camera.set(cv2.cv.CV_CAP_PROP_FRAME_WIDTH, 1280)
+        camera.set(cv2.cv.CV_CAP_PROP_FRAME_HEIGHT, 720)
         sleep(3)
         if debug:
             get_camera_params()
@@ -226,6 +226,7 @@ if __name__ == "__main__":
         image_resolution = get_image_resolution(image_media_path)
         image_width = image_resolution[0]
         image_height = image_resolution[1]
+        print("Camera resolutions is set to %ix%i" % (image_width, image_height))
         sensitivity = int(image_width * image_height / number_processes * 0.10)
         start_array = current_array = read_image(image_media_path)
         print("Done.")
