@@ -10,6 +10,8 @@
 Thumbs.db
 .xls
 atlassian-ide-plugin.xml
+venv
+/venv/
 
 /src/src/database/*
 /src/source/database/*
