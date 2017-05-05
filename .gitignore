@@ -40,3 +40,5 @@ src/celerybeat-schedule.db
 src/celerybeat-schedule
 src/source/pids
 src/source/modules/conf/*
+
+opencv/*
