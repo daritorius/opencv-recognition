@@ -27,6 +27,7 @@ monkey.patch_all()
 
 camera_port = 0
 camera = None
+clean = 0
 
 image_width = 0
 image_height = 0
@@ -201,6 +202,8 @@ if __name__ == "__main__":
                         help='Camera index in your system. Main camera is usually equal to 0.')
     parser.add_argument('--debug', metavar='N', nargs='+', type=int,
                         help='Debug settings 0|1, default is 0.')
+    parser.add_argument('--clean', metavar='N', nargs='+', type=int,
+                        help='Clean all cached images: 0|1, default is 0.')
     parser.add_argument('--delay', metavar='N', nargs='+', type=int,
                         help='Delay between notifications in minutes.')
     args = parser.parse_args()
@@ -210,13 +213,16 @@ if __name__ == "__main__":
         debug = False if not args.debug[0] else True
     if args.delay is not None:
         time_delay = args.delay[0]
+    if args.clean is not None:
+        clean = args.clean[0]
     print("Done.")
     print("Setting up delay between messages to %i minutes." % time_delay)
     print("Done.")
     try:
         # remove all previous
-        # print("Cleaning all cached images...")
-        # clean_images()
+        if clean:
+            print("Cleaning all cached images...")
+            clean_images()
         print("Done.")
         # init camera
         print("Starting camera....")
