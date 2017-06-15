@@ -10,6 +10,8 @@
 Thumbs.db
 .xls
 atlassian-ide-plugin.xml
+venv
+/venv/
 
 /src/src/database/*
 /src/source/database/*
@@ -38,3 +40,5 @@ src/celerybeat-schedule.db
 src/celerybeat-schedule
 src/source/pids
 src/source/modules/conf/*
+
+opencv/*
