@@ -5,3 +5,4 @@ matplotlib
 pillow
 requests
 opencv-python
+gevent
