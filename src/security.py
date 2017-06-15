@@ -119,15 +119,10 @@ def check_motion(array1, array2):
     results = manager.dict()
 
     for i in range(0, number_processes):
-        if i == 0:
-            start_index_width = start_index_height = 0
-            end_index_width = image_width / number_processes
-            end_index_height = image_height / number_processes
-        else:
-            start_index_width = image_width / number_processes * i + 1
-            start_index_height = image_height / number_processes * i + 1
-            end_index_width = image_width / number_processes * (i + 1)
-            end_index_height = image_height / number_processes * (i + 1)
+        start_index_width = image_width / number_processes * i
+        end_index_width = (image_width / number_processes * (i + 1)) - 1
+        start_index_height = image_height / number_processes * i
+        end_index_height = (image_height / number_processes * (i + 1)) - 1
         p = Process(
             target=check_sensitivity,
             args=(
