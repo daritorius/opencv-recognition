@@ -235,10 +235,11 @@ if __name__ == "__main__":
         print("Done.")
         print("Capturing initial image...")
         im, image_media_path = capture_image()
+        print("Done.")
         image_resolution = get_image_resolution(image_media_path)
         image_width = image_resolution[0]
         image_height = image_resolution[1]
-        print("Camera resolutions is set to %ix%i" % (image_width, image_height))
+        print("Camera resolution is set to %ix%i" % (image_width, image_height))
         sensitivity = int(image_width * image_height / number_processes * 0.10)
         start_array = current_array = read_image(image_media_path)
         print("Done.")
