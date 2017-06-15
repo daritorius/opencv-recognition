@@ -223,7 +223,7 @@ if __name__ == "__main__":
         if clean:
             print("Cleaning all cached images...")
             clean_images()
-        print("Done.")
+            print("Done.")
         # init camera
         print("Starting camera....")
         camera = cv2.VideoCapture(camera_port)
