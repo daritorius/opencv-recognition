@@ -189,7 +189,11 @@ def clean_images():
 
 
 def process_detection(image_media_path):
+    if debug:
+        print("Preparing image for sending...")
     image_string = get_image_string(image_media_path)
+    if debug:
+        print("Done")
     send_notification(image_string)
 
 
@@ -252,9 +256,9 @@ if __name__ == "__main__":
                     movement_time = datetime.datetime.utcnow()
                 now = datetime.datetime.utcnow()
                 time_diff = int((now - movement_time).total_seconds() / 60)
+                print("Alert! Movement detected!")
                 if time_diff >= time_delay:
                     movement_time = now
-                    print("Alert! Movement detected!")
                     gevent.joinall([gevent.spawn(process_detection, image_media_path)])
             remove_image(image_media_path)
             im, image_media_path = capture_image()
