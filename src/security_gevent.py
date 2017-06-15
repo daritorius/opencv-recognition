@@ -255,12 +255,6 @@ if __name__ == "__main__":
                     movement_time = now
                     print("Alert! Movement detected!")
                     gevent.joinall([gevent.spawn(process_detection, image_media_path)])
-                    # image_string = get_image_string(image_media_path)
-                    # send_notification(image_string)
-                # remove_image(image_media_path)
-                # im, image_media_path = capture_image()
-                # start_array = current_array
-                # continue
             remove_image(image_media_path)
             im, image_media_path = capture_image()
             start_array = current_array
