@@ -2,6 +2,7 @@
 from __future__ import unicode_literals
 
 import gevent
+import signal
 from gevent import monkey
 
 import argparse
@@ -186,6 +187,11 @@ def clean_images():
         call(["rm", "-rf", dump])
 
 
+def process_detection(image_media_path):
+    image_string = get_image_string(image_media_path)
+    send_notification(image_string)
+
+
 if __name__ == "__main__":
     print("This script will use %i cores of your CPU to analyze video stream." % number_processes)
     print("Parsing args...")
@@ -242,8 +248,8 @@ if __name__ == "__main__":
                 if time_diff >= time_delay:
                     movement_time = now
                     print("Alert! Movement detected!")
-                    image_string = get_image_string(image_media_path)
-                    gevent.joinall([gevent.spawn(send_notification, image_string)])
+                    gevent.joinall([gevent.spawn(process_detection, image_media_path)])
+                    # image_string = get_image_string(image_media_path)
                     # send_notification(image_string)
                 # remove_image(image_media_path)
                 # im, image_media_path = capture_image()
@@ -256,11 +262,13 @@ if __name__ == "__main__":
                 print(datetime.datetime.utcnow() - startTime)
     except KeyboardInterrupt:
         camera.release()
+        gevent.signal(signal.SIGQUIT, gevent.kill)
     except Exception as e:
         print(e)
         import traceback
         print(traceback.format_exc())
         camera.release()
+        gevent.signal(signal.SIGQUIT, gevent.kill)
     finally:
         clean_images()
         print('Bye :)')
