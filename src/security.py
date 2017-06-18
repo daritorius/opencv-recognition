@@ -175,8 +175,14 @@ def remove_image(image_media_path):
     os.remove(image_media_path)
 
 
-def clean_images():
+def _get_image_files():
     files = glob.glob("%s/*.jpg" % base_image_path)
+    for dump in files:
+        yield dump
+
+
+def clean_images():
+    files = _get_image_files()
     for dump in files:
         call(["rm", "-rf", dump])
 
