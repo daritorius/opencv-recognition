@@ -36,7 +36,7 @@ number_processes = cpu_count()
 sensitivity = 0
 black_pixels_percent = 80
 
-api_host = "http://leksto.net/"
+api_host = "https://security.mybrains.org/"
 user_api_key = "eb2d06b672c81a0c5ce490840b4abf7082113c9efdb4ec66f944dc3f81f52b00370c23be68e32dbd23ea47e0aa2d7a7482" \
                "29d77180093fc102ebf8bd982bcc36FE9KuyBpl1D"
 user_id = 1
@@ -53,17 +53,17 @@ detection_results = dict()
 
 
 def get_camera_params():
-    test = camera.get(cv2.cv.CV_CAP_PROP_POS_MSEC)
-    ratio = camera.get(cv2.cv.CV_CAP_PROP_POS_AVI_RATIO)
-    frame_rate = camera.get(cv2.cv.CV_CAP_PROP_FPS)
-    width = camera.get(cv2.cv.CV_CAP_PROP_FRAME_WIDTH)
-    height = camera.get(cv2.cv.CV_CAP_PROP_FRAME_HEIGHT)
-    brightness = camera.get(cv2.cv.CV_CAP_PROP_BRIGHTNESS)
-    contrast = camera.get(cv2.cv.CV_CAP_PROP_CONTRAST)
-    saturation = camera.get(cv2.cv.CV_CAP_PROP_SATURATION)
-    hue = camera.get(cv2.cv.CV_CAP_PROP_HUE)
-    gain = camera.get(cv2.cv.CV_CAP_PROP_GAIN)
-    exposure = camera.get(cv2.cv.CV_CAP_PROP_EXPOSURE)
+    test = camera.get(cv2.CAP_PROP_POS_MSEC)
+    ratio = camera.get(cv2.CAP_PROP_POS_AVI_RATIO)
+    frame_rate = camera.get(cv2.CAP_PROP_FPS)
+    width = camera.get(cv2.CAP_PROP_FRAME_WIDTH)
+    height = camera.get(cv2.CAP_PROP_FRAME_HEIGHT)
+    brightness = camera.get(cv2.CAP_PROP_BRIGHTNESS)
+    contrast = camera.get(cv2.CAP_PROP_CONTRAST)
+    saturation = camera.get(cv2.CAP_PROP_SATURATION)
+    hue = camera.get(cv2.CAP_PROP_HUE)
+    gain = camera.get(cv2.CAP_PROP_GAIN)
+    exposure = camera.get(cv2.CAP_PROP_EXPOSURE)
     print("Test: ", test)
     print("Ratio: ", ratio)
     print("Frame Rate: ", frame_rate)
@@ -136,10 +136,10 @@ def check_motion(array1, array2):
             i,
             array1,
             array2,
-            start_index_width,
-            end_index_width,
-            start_index_height,
-            end_index_height,
+            int(start_index_width),
+            int(end_index_width),
+            int(start_index_height),
+            int(end_index_height),
         ))
 
     gevent.joinall(tasks)
@@ -231,8 +231,8 @@ if __name__ == "__main__":
         # init camera
         print("Starting camera....")
         camera = cv2.VideoCapture(camera_port)
-        camera.set(cv2.cv.CV_CAP_PROP_FRAME_WIDTH, 1280)
-        camera.set(cv2.cv.CV_CAP_PROP_FRAME_HEIGHT, 720)
+        camera.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+        camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
         sleep(3)
         if debug:
             get_camera_params()
