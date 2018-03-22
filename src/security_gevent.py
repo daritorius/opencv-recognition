@@ -256,7 +256,8 @@ if __name__ == "__main__":
                     movement_time = datetime.datetime.utcnow()
                 now = datetime.datetime.utcnow()
                 time_diff = int((now - movement_time).total_seconds() / 60)
-                print("Alert! Movement detected!")
+                local_now = datetime.datetime.now()
+                print("%s: Alert! Movement detected!" % (local_now.strftime("%Y-%m-%d %I:%M:%S %p")))
                 if time_diff >= time_delay:
                     movement_time = now
                     gevent.joinall([gevent.spawn(process_detection, image_media_path)])
