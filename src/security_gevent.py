@@ -4,6 +4,7 @@ from __future__ import unicode_literals
 import gevent
 import signal
 from gevent import monkey
+monkey.patch_all()
 
 import argparse
 import os
@@ -22,8 +23,6 @@ import base64
 
 from multiprocessing import cpu_count
 
-
-monkey.patch_all()
 
 camera_port = 0
 camera = None
@@ -170,7 +169,7 @@ def send_notification(image_string):
     }
     try:
         print("Sending notification...")
-        response = requests.post(api_host, data=data)
+        response = requests.post(api_host, data=data, verify=False)
     except Exception:
         import traceback
         print(traceback.format_exc())
@@ -266,6 +265,7 @@ if __name__ == "__main__":
             start_array = current_array
             if debug:
                 print(datetime.datetime.utcnow() - startTime)
+            sleep(1)
     except KeyboardInterrupt:
         camera.release()
         gevent.signal(signal.SIGQUIT, gevent.kill)
