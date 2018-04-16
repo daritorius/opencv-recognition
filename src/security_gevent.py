@@ -30,10 +30,10 @@ clean = 0
 
 image_width = 0
 image_height = 0
-threshold = 10
+threshold = 5
 number_processes = cpu_count()
 sensitivity = 0
-black_pixels_percent = 80
+black_pixels_percent = 85
 
 api_host = "https://security.mybrains.org/"
 user_api_key = "eb2d06b672c81a0c5ce490840b4abf7082113c9efdb4ec66f944dc3f81f52b00370c23be68e32dbd23ea47e0aa2d7a7482" \
