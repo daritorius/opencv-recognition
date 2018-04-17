@@ -206,7 +206,7 @@ if __name__ == "__main__":
             raise KeyboardInterrupt
         print("Done.")
         print("Camera resolution is set to %ix%i" % (camera_width, camera_height))
-        sensitivity = int(camera_width * camera_height / number_processes * 0.05)
+        sensitivity = int(camera_width * camera_height / number_processes * 0.10)
         start_array = current_array = im
         print("Done.")
         print("Starting security process...")
