@@ -201,6 +201,9 @@ if __name__ == "__main__":
         print("Done.")
         print("Capturing initial image...")
         im = capture_image()
+        if im is None:
+            print("Can't access to camera :(")
+            raise KeyboardInterrupt
         print("Done.")
         print("Camera resolution is set to %ix%i" % (camera_width, camera_height))
         sensitivity = int(camera_width * camera_height / number_processes * 0.05)
