@@ -169,7 +169,7 @@ def send_notification(image_string):
     }
     try:
         print("Sending notification...")
-        response = requests.post(api_host, data=data, verify=False)
+        response = requests.post(api_host, data=data, verify=False, timeout=10)
     except Exception:
         import traceback
         print(traceback.format_exc())
