@@ -163,9 +163,11 @@ class Security(object):
             print("Bye :) See you next time!")
 
     def finish(self):
-        self.camera.release()
+        if self.camera is not None:
+            self.camera.release()
+            self.camera = None
+
         gevent.signal(signal.SIGQUIT, gevent.kill)
-        self.camera = None
 
         # forcing garbage collector
         if len(gc.garbage):
