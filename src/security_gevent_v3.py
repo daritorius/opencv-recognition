@@ -267,6 +267,10 @@ class Security(object):
         print("Done.")
 
     def capture_image(self):
+        if self.camera is None:
+            self.finish()
+            sleep(5)
+            self.start()
         return self.camera.read()[1]
 
     def count_black_pixels(self, array):
