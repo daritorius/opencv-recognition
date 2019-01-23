@@ -10,6 +10,7 @@ import cv2
 import numpy
 import signal
 import base64
+import asyncio
 import requests
 import datetime
 import argparse
@@ -28,30 +29,6 @@ from multiprocessing import cpu_count
             - jemalloc path: `/usr/local/lib/libjemalloc.so`
             - run program: LD_PRELOAD={path to jemalloc} python security_gevent_v3.py
 """
-
-
-def init_parser():
-    parser.add_argument(
-        "--port",
-        metavar="N",
-        nargs="+",
-        type=int,
-        help="Camera index in your system. Main camera is usually equal to 0.",
-    )
-    parser.add_argument(
-        "--debug",
-        metavar="N",
-        nargs="+",
-        type=int,
-        help="Debug settings 0|1, default is 0.",
-    )
-    parser.add_argument(
-        "--delay",
-        metavar="N",
-        nargs="+",
-        type=int,
-        help="Delay between notifications in minutes.",
-    )
 
 
 class Singleton(type):
@@ -141,7 +118,7 @@ class Security(object):
                     if self.movement_time is None:
                         self.movement_time = now
                     time_diff = int((now - self.movement_time).total_seconds() / 60)
-                    print("{}: Alert! Movement detected!".format(now.strftime("%Y-%m-%d %I:%M:%S %p")))
+                    print("{}: Alert! Movement detected!".format(self.movement_time.strftime("%Y-%m-%d %I:%M:%S %p")))
                     if time_diff >= self.time_delay:
                         self.movement_time = now
                         gevent.joinall([gevent.spawn(self.process_detection, self.current_array)])
@@ -175,16 +152,15 @@ class Security(object):
         print("Starting camera....")
         if self.camera is not None:
             self.finish()
-            sleep(5)
 
         if self.startup_count > self.max_startup_count:
             self.finish()
             sleep(5)
             self.start()
 
-        self.camera = cv2.VideoCapture(self.camera_port)
-        self.camera.set(cv2.CAP_PROP_FRAME_WIDTH, self.camera_width)
-        self.camera.set(cv2.CAP_PROP_FRAME_HEIGHT, self.camera_height)
+        self.camera = cv2.VideoCapture(security.camera_port)
+        self.camera.set(cv2.CAP_PROP_FRAME_WIDTH, security.camera_width)
+        self.camera.set(cv2.CAP_PROP_FRAME_HEIGHT, security.camera_height)
         self.camera.set(cv2.CAP_PROP_AUTOFOCUS, 1)
         sleep(5)
 
@@ -204,34 +180,28 @@ class Security(object):
 
     def get_camera_settings(self):
         self.camera_settings = dict(
-            hue=self.camera.get(cv2.CAP_PROP_HUE),
-            gain=self.camera.get(cv2.CAP_PROP_GAIN),
             test=self.camera.get(cv2.CAP_PROP_POS_MSEC),
+            ratio=self.camera.get(cv2.CAP_PROP_POS_AVI_RATIO),
             frame_rate=self.camera.get(cv2.CAP_PROP_FPS),
-            exposure=self.camera.get(cv2.CAP_PROP_EXPOSURE),
-            contrast=self.camera.get(cv2.CAP_PROP_CONTRAST),
             width=self.camera.get(cv2.CAP_PROP_FRAME_WIDTH),
             height=self.camera.get(cv2.CAP_PROP_FRAME_HEIGHT),
-            ratio=self.camera.get(cv2.CAP_PROP_POS_AVI_RATIO),
             brightness=self.camera.get(cv2.CAP_PROP_BRIGHTNESS),
+            contrast=self.camera.get(cv2.CAP_PROP_CONTRAST),
             saturation=self.camera.get(cv2.CAP_PROP_SATURATION),
+            hue=self.camera.get(cv2.CAP_PROP_HUE),
+            gain=self.camera.get(cv2.CAP_PROP_GAIN),
+            exposure=self.camera.get(cv2.CAP_PROP_EXPOSURE),
         )
         print("Camera settings are set to: {}".format(self.camera_settings))
 
-    def capture_initial_image(self, count=None, blur=None):
+    def capture_initial_image(self, count=None):
         if count is None:
             count = 1
-        assert isinstance(count, int) and count >= 1
-
-        assert isinstance(blur, type(None)) or isinstance(blur, float)
 
         if count > 5:
-            print("Too many attempts to capture an initial image.\nRestart in 5 seconds.")
+            print("Too many attempts to capture an initial image.\nReboot in 5 seconds.")
             self.finish()
-            if self.max_blur >= 10:
-                self.max_blur -= 5
-            else:
-                self.max_blur = blur
+            self.max_blur += 5
             sleep(5)
             self.start()
 
@@ -242,25 +212,12 @@ class Security(object):
             print("Can't access to the camera :(")
             raise KeyboardInterrupt
 
-        # test blur rating
         blur = cv2.Laplacian(im, cv2.CV_64F).var()
-        assert isinstance(blur, float)
         if blur < self.max_blur:
-            print("{}: Camera has lost focus. We can't analyze the initial picture. Blur rating is: {}.".format(
-                datetime.datetime.utcnow().strftime("%Y-%m-%d %I:%M:%S %p"),
-                blur,
-            ))
-            sleep(2)
-            self.capture_initial_image(count=count+1, blur=blur)
-
-        # test black pixels rating
-        black_pixels = self.count_black_pixels(im)
-        assert isinstance(black_pixels, int)
-        if black_pixels >= self.black_pixels_percent:
-            print("{}: It's too dark. We can't capture normal video stream. Black pixels rating is: {}.".format(
-                datetime.datetime.utcnow().strftime("%Y-%m-%d %I:%M:%S %p"),
-                black_pixels,
-            ))
+            print("{}: Camera has lost focus. We can't analyze the initial picture.".format(
+                datetime.datetime.utcnow().strftime("%Y-%m-%d %I:%M:%S %p")))
+            sleep(1)
+            self.capture_initial_image(count=count+1)
 
         del im
         print("Done.")
@@ -368,7 +325,6 @@ class Security(object):
         return any(self.detection_results.values())
 
     def process_detection(self, array):
-        assert isinstance(array, numpy.ndarray)
         if self.debug:
             print("Preparing image for sending...")
         image_string = self.get_image_string(array)
@@ -379,11 +335,9 @@ class Security(object):
     @staticmethod
     @jit(nogil=True)
     def get_image_string(array):
-        assert isinstance(array, numpy.ndarray)
         return base64.b64encode(cv2.imencode('.jpg', array)[1])
 
     def send_notification(self, image_string):
-        assert isinstance(image_string, bytes)
         data = {
             "user_id": self.api_user_id,
             "api_key": self.api_key,
@@ -408,27 +362,41 @@ class Security(object):
             print("Notification sent: {}".format(response.status_code))
 
 
+async def display_date():
+    loop = asyncio.get_running_loop()
+    end_time = loop.time() + 5.0
+    while True:
+        print(datetime.datetime.now())
+        if (loop.time() + 1.0) >= end_time:
+            break
+        await asyncio.sleep(1)
+
+
 if __name__ == "__main__":
+    asyncio.run(display_date())
 
-    # init security object
-    security = Security()
-
-    # parse args
-    parser = argparse.ArgumentParser(
-        description="Process camera settings.",
-    )
-    init_parser()
-    args = parser.parse_args()
-    if args.port is not None:
-        security.camera_port = args.port[0]
-    if args.debug is not None:
-        security.debug = False if not args.debug[0] else True
-    if args.delay is not None:
-        security.time_delay = args.delay[0]
-
-    print("Done.")
-    print("Setting up delay between messages to {} minutes.".format(security.time_delay))
-    print("Done.")
-
-    # start security
-    security.start()
+    # # init security object
+    # security = Security()
+    #
+    # # parse args
+    # parser = argparse.ArgumentParser(description="Process camera settings.")
+    # parser.add_argument("--port", metavar="N", nargs="+", type=int,
+    #                     help="Camera index in your system. Main camera is usually equal to 0.")
+    # parser.add_argument("--debug", metavar="N", nargs="+", type=int,
+    #                     help="Debug settings 0|1, default is 0.")
+    # parser.add_argument("--delay", metavar="N", nargs="+", type=int,
+    #                     help="Delay between notifications in minutes.")
+    # args = parser.parse_args()
+    # if args.port is not None:
+    #     security.camera_port = args.port[0]
+    # if args.debug is not None:
+    #     security.debug = False if not args.debug[0] else True
+    # if args.delay is not None:
+    #     security.time_delay = args.delay[0]
+    #
+    # print("Done.")
+    # print("Setting up delay between messages to {} minutes.".format(security.time_delay))
+    # print("Done.")
+    #
+    # # start security
+    # security.start()
