@@ -10,6 +10,7 @@ import cv2
 import numpy
 import signal
 import base64
+import urllib3
 import requests
 import datetime
 import argparse
@@ -384,6 +385,9 @@ class Security(object):
 
     def send_notification(self, image_string):
         assert isinstance(image_string, bytes)
+        urllib3.disable_warnings(
+            urllib3.exceptions.InsecureRequestWarning
+        )
         data = {
             "user_id": self.api_user_id,
             "api_key": self.api_key,
