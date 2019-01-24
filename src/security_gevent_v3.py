@@ -144,6 +144,10 @@ class Security(object):
             self.finish()
             sleep(5)
             return self.start()
+        except KeyboardInterrupt:
+            self.finish()
+            print("Bye :) See you next time!")
+            sys.exit(1)
 
         try:
             self.loop = asyncio.get_event_loop()
