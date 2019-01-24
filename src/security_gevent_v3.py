@@ -6,14 +6,16 @@ from gevent import monkey
 monkey.patch_all()
 
 import gc
+import sys
 import cv2
 import numpy
 import signal
 import base64
 import urllib3
-import requests
+import asyncio
 import datetime
 import argparse
+import requests
 
 from numba import jit
 from time import sleep
@@ -67,6 +69,7 @@ class Singleton(type):
 class Security(object):
     __metaclass__ = Singleton
     __slots__ = (
+        "loop",
         "debug",
         "api_key",
         "max_blur",
@@ -95,8 +98,9 @@ class Security(object):
 
     def __init__(self):
         # system config
+        self.loop = None
         self.debug = False
-        self.max_blur = 19
+        self.max_blur = 10
         self.cpu_count = cpu_count()
         self.threshold = 5
         self.time_delay = 15
@@ -128,28 +132,29 @@ class Security(object):
         print("This script will use {} cores of your CPU to analyze video stream.".format(self.cpu_count))
         print("Parsing args...")
 
-        self.init_camera()
-        self.start_security()
-
-    def start_security(self):
         try:
-            print("Starting security process...")
-            while True:
-                start_at = datetime.datetime.utcnow()
-                self.current_array = self.capture_image()
-                if self.check_motion(self.start_array, self.current_array):
-                    now = datetime.datetime.utcnow()
-                    if self.movement_time is None:
-                        self.movement_time = now
-                    time_diff = int((now - self.movement_time).total_seconds() / 60)
-                    print("{}: Alert! Movement detected!".format(now.strftime("%Y-%m-%d %I:%M:%S %p")))
-                    if time_diff >= self.time_delay:
-                        self.movement_time = now
-                        gevent.joinall([gevent.spawn(self.process_detection, self.current_array)])
-                        sleep(self.api_request_timeout)
-                self.start_array = self.current_array
-                if self.debug:
-                    print(datetime.datetime.utcnow() - start_at)
+            self.init_camera()
+        except ValueError as e:
+            print(e)
+            print("Restart in 5 seconds.")
+            self.finish()
+            sleep(5)
+            # reset startup counter
+            self.startup_count = 0
+            return self.start()
+
+        self.loop = asyncio.get_event_loop()
+        try:
+            asyncio.ensure_future(self.start_security())
+            self.loop.run_forever()
+        except ValueError as e:
+            print(e)
+            print("Restart in 5 seconds.")
+            self.finish()
+            sleep(5)
+            # reset startup counter
+            self.startup_count = 0
+            return self.start()
         except KeyboardInterrupt:
             self.finish()
         except Exception as e:
@@ -161,13 +166,44 @@ class Security(object):
             self.finish()
         finally:
             print("Bye :) See you next time!")
+            sys.exit(1)
+
+    async def start_security(self):
+        print("Starting security process...")
+        while True:
+            start_at = datetime.datetime.utcnow()
+            self.current_array = self.capture_image()
+            if self.check_motion(self.start_array, self.current_array):
+                now = datetime.datetime.utcnow()
+                if self.movement_time is None:
+                    self.movement_time = now
+                time_diff = int((now - self.movement_time).total_seconds() / 60)
+                print("{}: Alert! Movement detected!".format(now.strftime("%Y-%m-%d %I:%M:%S %p")))
+                if time_diff >= self.time_delay:
+                    self.movement_time = now
+                    gevent.joinall([gevent.spawn(self.process_detection, self.current_array)])
+                    await asyncio.sleep(self.api_request_timeout)
+            self.start_array = self.current_array
+            if self.debug:
+                print(datetime.datetime.utcnow() - start_at)
+            await asyncio.sleep(1)
 
     def finish(self):
+        if self.loop is not None:
+            # cancel all tasks
+            for task in asyncio.Task.all_tasks():
+                try:
+                    task.cancel()
+                except asyncio.CancelledError:
+                    print("Can't cancel task: {}.".format(task))
+            self.loop.stop()
+            self.loop.close()
+
+        gevent.signal(signal.SIGQUIT, gevent.kill)
+
         if self.camera is not None:
             self.camera.release()
             self.camera = None
-
-        gevent.signal(signal.SIGQUIT, gevent.kill)
 
         # forcing garbage collector
         if len(gc.garbage):
@@ -176,14 +212,9 @@ class Security(object):
     def init_camera(self):
         # init camera
         print("Starting camera....")
-        if self.camera is not None:
-            self.finish()
-            sleep(5)
 
         if self.startup_count > self.max_startup_count:
-            self.finish()
-            sleep(5)
-            self.start()
+            raise ValueError("Can't start camera")
 
         self.camera = cv2.VideoCapture(self.camera_port)
         self.camera.set(cv2.CAP_PROP_FRAME_WIDTH, self.camera_width)
@@ -196,14 +227,23 @@ class Security(object):
 
         print("Done.")
         print("Camera resolution is set to {}x{}".format(self.camera_width, self.camera_height))
-        self.capture_initial_image()
+
+        try:
+            self.capture_initial_image()
+        except ValueError as e:
+            print(e)
+            self.startup_count += 1
+            self.finish()
+            sleep(5)
+            return self.init_camera()
+
         self.sensitivity = int(self.camera_width * self.camera_height / self.cpu_count * 0.10)
+        print("Camera sensitivity is set to: {}".format(self.sensitivity))
 
         if self.debug:
             print("Sensitivity for camera is set to: {}".format(self.sensitivity))
 
         self.start_array = self.current_array = self.capture_image()
-        self.startup_count += 1
 
     def get_camera_settings(self):
         self.camera_settings = dict(
@@ -229,51 +269,41 @@ class Security(object):
         assert isinstance(blur, type(None)) or isinstance(blur, float)
 
         if count > 5:
-            print("Too many attempts to capture an initial image.\nRestart in 5 seconds.")
-            self.finish()
             if self.max_blur >= 10:
                 self.max_blur -= 5
             else:
                 self.max_blur = blur
-            sleep(5)
-            self.start()
+            raise ValueError("Too many attempts to capture an initial image.\nRestart in 5 seconds.")
 
         # capture initial image
         print("Capturing initial image...")
         im = self.capture_image()
         if im is None:
-            print("Can't access to the camera :(")
-            raise KeyboardInterrupt
+            raise ValueError("Can't access to the camera :(")
+
+        print("Expected blur ratio is: {}.".format(self.max_blur))
 
         # test blur rating
         blur = cv2.Laplacian(im, cv2.CV_64F).var()
         assert isinstance(blur, float)
         if blur < self.max_blur:
-            print("{}: Camera has lost focus. We can't analyze the initial picture. Blur rating is: {}.".format(
-                datetime.datetime.utcnow().strftime("%Y-%m-%d %I:%M:%S %p"),
-                blur,
-            ))
+            print(
+                "{}: Camera has lost focus. We can't analyze the initial picture. Blur rating is: {}.".format(
+                    datetime.datetime.utcnow().strftime("%Y-%m-%d %I:%M:%S %p"),
+                    blur,
+                )
+            )
             sleep(2)
-            self.capture_initial_image(count=count+1, blur=blur)
-
-        # test black pixels rating
-        black_pixels = self.count_black_pixels(im)
-        assert isinstance(black_pixels, int)
-        if black_pixels >= self.black_pixels_percent:
-            print("{}: It's too dark. We can't capture normal video stream. Black pixels rating is: {}.".format(
-                datetime.datetime.utcnow().strftime("%Y-%m-%d %I:%M:%S %p"),
-                black_pixels,
-            ))
+            return self.capture_initial_image(count=count+1, blur=blur)
 
         del im
         print("Done.")
 
     def capture_image(self):
-        if self.camera is None:
-            self.finish()
-            sleep(5)
-            self.start()
-        return self.camera.read()[1]
+        try:
+            return self.camera.read()[1]
+        except (AttributeError, IndexError):
+            return None
 
     def count_black_pixels(self, array):
         assert isinstance(array, numpy.ndarray)
@@ -334,10 +364,11 @@ class Security(object):
         # detect blur on current image
         blur = cv2.Laplacian(array2, cv2.CV_64F).var()
         if blur < self.max_blur:
-            print("{}: Camera has lost focus. We can't analyze the video stream.".format(
-                datetime.datetime.utcnow().strftime("%Y-%m-%d %I:%M:%S %p")))
-            self.init_camera()
-            return False
+            raise ValueError(
+                "{}: Camera has lost focus. We can't analyze the video stream.".format(
+                    datetime.datetime.utcnow().strftime("%Y-%m-%d %I:%M:%S %p")
+                )
+            )
 
         tasks = []
 
@@ -381,7 +412,9 @@ class Security(object):
         image_string = self.get_image_string(array)
         if self.debug:
             print("Done")
-        self.send_notification(image_string)
+
+        # send notification
+        asyncio.ensure_future(self.send_notification(image_string), loop=self.loop)
 
     @staticmethod
     @jit(nogil=True)
@@ -389,7 +422,7 @@ class Security(object):
         assert isinstance(array, numpy.ndarray)
         return base64.b64encode(cv2.imencode('.jpg', array)[1])
 
-    def send_notification(self, image_string):
+    async def send_notification(self, image_string):
         assert isinstance(image_string, bytes)
         urllib3.disable_warnings(
             urllib3.exceptions.InsecureRequestWarning
