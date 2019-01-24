@@ -297,6 +297,8 @@ class Security(object):
             sleep(2)
             return self.capture_initial_image(count=count+1, blur=blur)
 
+        print("Blur rating is: {}.".format(blur))
+
         del im
         print("Done.")
 
