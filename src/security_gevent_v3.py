@@ -133,27 +133,27 @@ class Security(object):
         print("Parsing args...")
 
         try:
+            # reset startup counter
+            if self.startup_count:
+                self.startup_count = 0
+
             self.init_camera()
         except ValueError as e:
             print(e)
             print("Restart in 5 seconds.")
             self.finish()
             sleep(5)
-            # reset startup counter
-            self.startup_count = 0
             return self.start()
 
-        self.loop = asyncio.get_event_loop()
         try:
-            asyncio.ensure_future(self.start_security())
+            self.loop = asyncio.get_event_loop()
+            asyncio.ensure_future(self.start_security(), loop=self.loop)
             self.loop.run_forever()
         except ValueError as e:
             print(e)
             print("Restart in 5 seconds.")
             self.finish()
             sleep(5)
-            # reset startup counter
-            self.startup_count = 0
             return self.start()
         except KeyboardInterrupt:
             self.finish()
@@ -198,6 +198,7 @@ class Security(object):
                     print("Can't cancel task: {}.".format(task))
             self.loop.stop()
             self.loop.close()
+            self.loop = None
 
         gevent.signal(signal.SIGQUIT, gevent.kill)
 
@@ -233,7 +234,6 @@ class Security(object):
         except ValueError as e:
             print(e)
             self.startup_count += 1
-            self.finish()
             sleep(5)
             return self.init_camera()
 
@@ -448,7 +448,7 @@ class Security(object):
             import traceback
             print(traceback.format_exc())
         else:
-            print("Notification sent: {}".format(response.status_code))
+            print("Notification has been sent: {}".format(response.status_code))
 
 
 if __name__ == "__main__":
