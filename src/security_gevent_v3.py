@@ -189,8 +189,6 @@ class Security(object):
                     gevent.joinall([gevent.spawn(self.process_detection, self.current_array)])
                     await asyncio.sleep(self.api_request_timeout)
             self.start_array = self.current_array
-            if self.debug:
-                print(datetime.datetime.utcnow() - start_at)
             await asyncio.sleep(1)
 
     def finish(self):
@@ -244,9 +242,6 @@ class Security(object):
 
         self.sensitivity = int(self.camera_width * self.camera_height / self.cpu_count * 0.10)
         print("Camera sensitivity is set to: {}".format(self.sensitivity))
-
-        if self.debug:
-            print("Sensitivity for camera is set to: {}".format(self.sensitivity))
 
         self.start_array = self.current_array = self.capture_image()
 
