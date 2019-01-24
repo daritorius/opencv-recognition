@@ -368,15 +368,6 @@ class Security(object):
         if black_pixels >= self.black_pixels_percent:
             return False
 
-        # detect blur on current image
-        blur = cv2.Laplacian(array2, cv2.CV_64F).var()
-        if blur < self.max_blur:
-            raise ValueError(
-                "{}: Camera has lost focus. We can't analyze the video stream.".format(
-                    datetime.datetime.utcnow().strftime("%Y-%m-%d %I:%M:%S %p")
-                )
-            )
-
         tasks = []
 
         # reset detection results
