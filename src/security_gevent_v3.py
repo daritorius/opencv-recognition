@@ -175,10 +175,15 @@ class Security(object):
 
     async def start_security(self):
         print("Starting security process...")
+        is_reload = False
         while True:
-            start_at = datetime.datetime.utcnow()
             self.current_array = self.capture_image()
-            if self.check_motion(self.start_array, self.current_array):
+            try:
+                check_motion = self.check_motion(self.start_array, self.current_array)
+            except ValueError:
+                is_reload = True
+                break
+            if check_motion:
                 now = datetime.datetime.utcnow()
                 if self.movement_time is None:
                     self.movement_time = now
@@ -190,6 +195,10 @@ class Security(object):
                     await asyncio.sleep(self.api_request_timeout)
             self.start_array = self.current_array
             await asyncio.sleep(1)
+        if is_reload:
+            raise ValueError("Need to be reload")
+        else:
+            raise KeyboardInterrupt
 
     def finish(self):
         if self.loop is not None:
@@ -354,8 +363,8 @@ class Security(object):
 
     @jit(nogil=True)
     def check_motion(self, array1, array2):
-        assert isinstance(array1, numpy.ndarray)
-        assert isinstance(array2, numpy.ndarray)
+        if not isinstance(array1, numpy.ndarray) or not isinstance(array2, numpy.ndarray):
+            raise ValueError("Expecting numpy array.")
 
         # check if array2 has many black pixels
         black_pixels = self.count_black_pixels(array2)
@@ -392,9 +401,6 @@ class Security(object):
         # forcing garbage collector
         if len(gc.garbage):
             gc.collect()
-
-        if self.debug:
-            print(self.detection_results)
 
         return any(self.detection_results.values())
 
