@@ -157,6 +157,8 @@ class Security(object):
             return self.start()
         except KeyboardInterrupt:
             self.finish()
+            print("Bye :) See you next time!")
+            sys.exit(1)
         except Exception as e:
             if self.debug:
                 import traceback
@@ -164,7 +166,6 @@ class Security(object):
             else:
                 print(e)
             self.finish()
-        finally:
             print("Bye :) See you next time!")
             sys.exit(1)
 
