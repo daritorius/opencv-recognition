@@ -151,11 +151,13 @@ class Security(object):
 
         try:
             self.loop = asyncio.get_event_loop()
-            if self.loop.is_closed():
+            if self.loop.is_closed() or self.loop.is_running():
+                if self.loop.is_running():
+                    self.loop.stop()
                 self.loop = asyncio.new_event_loop()
             _f = asyncio.ensure_future(self.start_security(), loop=self.loop)
-            _f.add_done_callback(self.motion_detection_callback)
             self.loop.run_until_complete(_f)
+            _f.add_done_callback(self.motion_detection_callback)
         except ValueError as e:
             print(e)
             print("Restart in 5 seconds.")
