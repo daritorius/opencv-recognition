@@ -180,13 +180,19 @@ class Security(object):
         try:
             result.result()
         except ValueError:
+            print("Restart in 5 seconds.")
             self.finish()
             sleep(5)
             return self.start()
         except Exception as e:
+            print("Restart in 5 seconds.")
             self.finish()
             sleep(5)
             return self.start()
+        except KeyboardInterrupt:
+            self.finish()
+            print("Bye :) See you next time!")
+            sys.exit(1)
 
     async def start_security(self):
         print("Starting security process...")
