@@ -70,6 +70,7 @@ class Security(object):
     __metaclass__ = Singleton
     __slots__ = (
         "loop",
+        "sens",
         "debug",
         "api_key",
         "max_blur",
@@ -94,11 +95,14 @@ class Security(object):
         "camera_width",
         "camera_height",
         "camera_settings",
+        "camera_detect_width",
+        "camera_detect_height",
     )
 
     def __init__(self):
         # system config
         self.loop = None
+        self.sens = 0.1
         self.debug = False
         self.max_blur = 10
         self.cpu_count = cpu_count()
@@ -127,6 +131,8 @@ class Security(object):
         self.camera_width = 1280
         self.camera_height = 720
         self.camera_settings = dict()
+        self.camera_detect_width = 128
+        self.camera_detect_height = 72
 
     def start(self):
         print("This script will use {} cores of your CPU to analyze video stream.".format(self.cpu_count))
@@ -209,7 +215,7 @@ class Security(object):
                 print("{}: Alert! Movement detected!".format(now.strftime("%Y-%m-%d %I:%M:%S %p")))
                 if time_diff >= self.time_delay:
                     self.movement_time = now
-                    gevent.joinall([gevent.spawn(self.process_detection, self.current_array)])
+                    gevent.joinall([gevent.spawn(self.process_detection)])
                     await asyncio.sleep(self.api_request_timeout)
             self.start_array = self.current_array
             await asyncio.sleep(1)
@@ -245,8 +251,7 @@ class Security(object):
             raise ValueError("Can't start camera")
 
         self.camera = cv2.VideoCapture(self.camera_port)
-        self.camera.set(cv2.CAP_PROP_FRAME_WIDTH, self.camera_width)
-        self.camera.set(cv2.CAP_PROP_FRAME_HEIGHT, self.camera_height)
+        self.set_camera_detect_resolution()
         self.camera.set(cv2.CAP_PROP_AUTOFOCUS, 1)
         sleep(5)
 
@@ -254,7 +259,7 @@ class Security(object):
             self.get_camera_settings()
 
         print("Done.")
-        print("Camera resolution is set to {}x{}".format(self.camera_width, self.camera_height))
+        print("Camera resolution is set to {}x{}".format(self.camera_detect_width, self.camera_detect_height))
 
         try:
             self.capture_initial_image()
@@ -264,10 +269,18 @@ class Security(object):
             sleep(5)
             return self.init_camera()
 
-        self.sensitivity = int(self.camera_width * self.camera_height / self.cpu_count * 0.10)
+        self.sensitivity = int(self.camera_detect_width * self.camera_detect_height / self.cpu_count * self.sens)
         print("Camera sensitivity is set to: {}".format(self.sensitivity))
 
         self.start_array = self.current_array = self.capture_image()
+
+    def set_camera_full_resolution(self):
+        self.camera.set(cv2.CAP_PROP_FRAME_WIDTH, self.camera_width)
+        self.camera.set(cv2.CAP_PROP_FRAME_HEIGHT, self.camera_height)
+
+    def set_camera_detect_resolution(self):
+        self.camera.set(cv2.CAP_PROP_FRAME_WIDTH, self.camera_detect_width)
+        self.camera.set(cv2.CAP_PROP_FRAME_HEIGHT, self.camera_detect_height)
 
     def get_camera_settings(self):
         self.camera_settings = dict(
@@ -333,7 +346,7 @@ class Security(object):
 
     def count_black_pixels(self, array):
         assert isinstance(array, numpy.ndarray)
-        total_pixels_count = self.camera_width * self.camera_height
+        total_pixels_count = self.camera_detect_width * self.camera_detect_height
         non_black_pixels_count = array.any(axis=-1).sum()
         return int((total_pixels_count - non_black_pixels_count) / total_pixels_count * 100)
 
@@ -404,10 +417,10 @@ class Security(object):
         self.detection_results = dict()
 
         for i in range(0, self.cpu_count):
-            start_index_width = self.camera_width / self.cpu_count * i
-            end_index_width = (self.camera_width / self.cpu_count * (i + 1)) - 1
-            start_index_height = self.camera_height / self.cpu_count * i
-            end_index_height = (self.camera_height / self.cpu_count * (i + 1)) - 1
+            start_index_width = self.camera_detect_width / self.cpu_count * i
+            end_index_width = (self.camera_detect_width / self.cpu_count * (i + 1)) - 1
+            start_index_height = self.camera_detect_height / self.cpu_count * i
+            end_index_height = (self.camera_detect_height / self.cpu_count * (i + 1)) - 1
             tasks.append(
                 gevent.spawn(
                     self.test_images,
@@ -430,16 +443,25 @@ class Security(object):
 
         return any(self.detection_results.values())
 
-    def process_detection(self, array):
+    def process_detection(self):
+        # set full resolution for camera
+        self.set_camera_full_resolution()
+
+        # capture image
+        array = self.capture_image()
         assert isinstance(array, numpy.ndarray)
         if self.debug:
             print("Preparing image for sending...")
+
         image_string = self.get_image_string(array)
         if self.debug:
             print("Done")
 
         # send notification
         asyncio.ensure_future(self.send_notification(image_string), loop=self.loop)
+
+        # revert camera resolution to detect mode
+        self.set_camera_detect_resolution()
 
     @staticmethod
     @jit(nogil=True)
