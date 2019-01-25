@@ -112,7 +112,7 @@ class Security(object):
         self.max_startup_count = 10
         self.detection_results = dict()
         self.api_request_timeout = 15
-        self.black_pixels_percent = 85
+        self.black_pixels_percent = 70
 
         # API credentials
         self.api_host = "https://security.mybrains.org/"
@@ -151,8 +151,11 @@ class Security(object):
 
         try:
             self.loop = asyncio.get_event_loop()
-            asyncio.ensure_future(self.start_security(), loop=self.loop)
-            self.loop.run_forever()
+            if self.loop.is_closed():
+                self.loop = asyncio.new_event_loop()
+            _f = asyncio.ensure_future(self.start_security(), loop=self.loop)
+            _f.add_done_callback(self.motion_detection_callback)
+            self.loop.run_until_complete(_f)
         except ValueError as e:
             print(e)
             print("Restart in 5 seconds.")
@@ -173,17 +176,23 @@ class Security(object):
             print("Bye :) See you next time!")
             sys.exit(1)
 
+    def motion_detection_callback(self, result):
+        try:
+            result.result()
+        except ValueError:
+            self.finish()
+            sleep(5)
+            return self.start()
+        except Exception as e:
+            self.finish()
+            sleep(5)
+            return self.start()
+
     async def start_security(self):
         print("Starting security process...")
-        is_reload = False
         while True:
             self.current_array = self.capture_image()
-            try:
-                check_motion = self.check_motion(self.start_array, self.current_array)
-            except ValueError:
-                self.finish()
-                is_reload = True
-                break
+            check_motion = self.check_motion(self.start_array, self.current_array)
             if check_motion:
                 now = datetime.datetime.utcnow()
                 if self.movement_time is None:
@@ -196,10 +205,6 @@ class Security(object):
                     await asyncio.sleep(self.api_request_timeout)
             self.start_array = self.current_array
             await asyncio.sleep(1)
-        if is_reload:
-            raise ValueError("Need to be reload")
-        else:
-            raise KeyboardInterrupt
 
     def finish(self):
         if self.loop is not None:
@@ -211,6 +216,7 @@ class Security(object):
                     print("Can't cancel task: {}.".format(task))
             self.loop.stop()
             self.loop.close()
+            del self.loop
             self.loop = None
 
         gevent.signal(signal.SIGQUIT, gevent.kill)
@@ -372,6 +378,17 @@ class Security(object):
         assert isinstance(black_pixels, int)
         if black_pixels >= self.black_pixels_percent:
             return False
+
+        # test blur rating
+        blur = cv2.Laplacian(array2, cv2.CV_64F).var()
+        assert isinstance(blur, float)
+        if blur < self.max_blur:
+            raise ValueError(
+                "{}: Camera has lost focus. We can't analyze the initial picture. Blur rating is: {}.".format(
+                    datetime.datetime.utcnow().strftime("%Y-%m-%d %I:%M:%S %p"),
+                    blur,
+                )
+            )
 
         tasks = []
 
