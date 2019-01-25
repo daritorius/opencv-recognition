@@ -181,6 +181,7 @@ class Security(object):
             try:
                 check_motion = self.check_motion(self.start_array, self.current_array)
             except ValueError:
+                self.finish()
                 is_reload = True
                 break
             if check_motion:
