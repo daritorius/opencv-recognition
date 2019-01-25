@@ -471,9 +471,8 @@ class Security(object):
 
     async def send_notification(self, image_string):
         assert isinstance(image_string, bytes)
-        urllib3.disable_warnings(
-            urllib3.exceptions.InsecureRequestWarning
-        )
+        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
         data = {
             "user_id": self.api_user_id,
             "api_key": self.api_key,
