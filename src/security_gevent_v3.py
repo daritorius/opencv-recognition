@@ -26,10 +26,10 @@ from multiprocessing import cpu_count
     Launch program with jemalloc installed:
         - MacOS:
             - jemalloc path: `/usr/local/Cellar/jemalloc/5.1.0/lib/libjemalloc.2.dylib`
-            - run program: DYLD_INSERT_LIBRARIES={path to jamalloc} python security_gevent_v3.py
+            - run program: DYLD_INSERT_LIBRARIES={path to jamalloc} python -u -B security_gevent_v3.py
         - Linux:
             - jemalloc path: `/usr/local/lib/libjemalloc.so`
-            - run program: LD_PRELOAD={path to jemalloc} python security_gevent_v3.py
+            - run program: LD_PRELOAD={path to jemalloc} python -u -B security_gevent_v3.py
 """
 
 
