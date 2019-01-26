@@ -69,28 +69,33 @@ class Singleton(type):
 class Security(object):
     __metaclass__ = Singleton
     __slots__ = (
+        # system
         "loop",
-        "sens",
         "debug",
-        "api_key",
         "max_blur",
-        "api_host",
         "cpu_count",
-        "threshold",
         "time_delay",
         "start_array",
         "camera_port",
-        "api_user_id",
-        "movement_time",
-        "current_array",
         "startup_count",
-        "api_user_email",
+        "current_array",
+        "movement_time",
         "detection_results",
         "max_startup_count",
         "api_request_timeout",
         "black_pixels_percent",
 
+        # api
+        "api_key",
+        "api_host",
+        "api_user_id",
+        "api_user_email",
+
+        # camera
+        "sens",
         "camera",
+        "threshold",
+        "threshold_p",
         "sensitivity",
         "camera_width",
         "camera_height",
@@ -102,11 +107,9 @@ class Security(object):
     def __init__(self):
         # system config
         self.loop = None
-        self.sens = 0.1
         self.debug = False
         self.max_blur = 1000
         self.cpu_count = cpu_count()
-        self.threshold = 5
         self.time_delay = 15
         self.camera_port = 0
         self.start_array = None
@@ -126,7 +129,10 @@ class Security(object):
         self.api_user_email = "dm.sokoly@gmail.com"
 
         # camera config
+        self.sens = 0.1
         self.camera = None
+        self.threshold = 5
+        self.threshold_p = 0.005
         self.sensitivity = None
         self.camera_width = 1280
         self.camera_height = 720
@@ -269,6 +275,7 @@ class Security(object):
             sleep(5)
             return self.init_camera()
 
+        self.threshold = int(self.camera_detect_width * self.camera_detect_height / self.cpu_count * self.threshold_p)
         self.sensitivity = int(self.camera_detect_width * self.camera_detect_height / self.cpu_count * self.sens)
         print("Camera sensitivity is set to: {}".format(self.sensitivity))
 
@@ -306,8 +313,14 @@ class Security(object):
         assert isinstance(blur, type(None)) or isinstance(blur, float)
 
         if count > 5:
-            if self.max_blur >= 10:
-                self.max_blur -= 5
+            if self.max_blur >= 1000:
+                self.max_blur -= 100
+            elif self.max_blur >= 500:
+                self.max_blur -= 50
+            elif self.max_blur >= 100:
+                self.max_blur -= 30
+            elif self.max_blur >= 50:
+                self.max_blur -= 10
             else:
                 self.max_blur = blur
             raise ValueError("Too many attempts to capture an initial image.\nRestart in 5 seconds.")
@@ -362,7 +375,8 @@ class Security(object):
 
         motion_detected = False
         pix_color = 1  # red=0 green=1 blue=2
-        pix_changes = black_pixels = 0
+        pix_changes = 0
+        black_pixels = 0
         for w in range(start_index_width, end_index_width):
             for h in range(start_index_height, end_index_height):
                 if data1[h][w].tolist() == [0, 0, 0]:
