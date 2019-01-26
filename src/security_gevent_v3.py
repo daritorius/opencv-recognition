@@ -104,7 +104,7 @@ class Security(object):
         self.loop = None
         self.sens = 0.1
         self.debug = False
-        self.max_blur = 10
+        self.max_blur = 2000
         self.cpu_count = cpu_count()
         self.threshold = 5
         self.time_delay = 15
