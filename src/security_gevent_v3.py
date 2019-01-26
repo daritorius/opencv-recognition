@@ -76,10 +76,12 @@ class Security(object):
         "cpu_count",
         "time_delay",
         "start_array",
+        "blur_values",
         "camera_port",
         "startup_count",
         "current_array",
         "movement_time",
+        "default_timeout",
         "detection_results",
         "max_startup_count",
         "api_request_timeout",
@@ -102,6 +104,7 @@ class Security(object):
         "camera_settings",
         "camera_detect_width",
         "camera_detect_height",
+        "max_camera_reload_count",
     )
 
     def __init__(self):
@@ -111,12 +114,14 @@ class Security(object):
         self.max_blur = 1000
         self.cpu_count = cpu_count()
         self.time_delay = 15
+        self.blur_values = []
         self.camera_port = 0
         self.start_array = None
         self.startup_count = 0
         self.current_array = None
         self.movement_time = None
         self.max_startup_count = 10
+        self.default_timeout = 2
         self.detection_results = dict()
         self.api_request_timeout = 15
         self.black_pixels_percent = 70
@@ -131,7 +136,7 @@ class Security(object):
         # camera config
         self.sens = 0.1
         self.camera = None
-        self.threshold = 5
+        self.threshold = None
         self.threshold_p = 0.005
         self.sensitivity = None
         self.camera_width = 1280
@@ -139,6 +144,7 @@ class Security(object):
         self.camera_settings = dict()
         self.camera_detect_width = 128
         self.camera_detect_height = 72
+        self.max_camera_reload_count = 5
 
     def start(self):
         print("This script will use {} cores of your CPU to analyze video stream.".format(self.cpu_count))
@@ -152,9 +158,9 @@ class Security(object):
             self.init_camera()
         except ValueError as e:
             print(e)
-            print("Restart in 5 seconds.")
+            print("Restart in {} seconds.".format(self.default_timeout))
             self.finish()
-            sleep(5)
+            sleep(self.default_timeout)
             return self.start()
         except KeyboardInterrupt:
             self.finish()
@@ -172,9 +178,9 @@ class Security(object):
             _f.add_done_callback(self.motion_detection_callback)
         except ValueError as e:
             print(e)
-            print("Restart in 5 seconds.")
+            print("Restart in {} seconds.".format(self.default_timeout))
             self.finish()
-            sleep(5)
+            sleep(self.default_timeout)
             return self.start()
         except KeyboardInterrupt:
             self.finish()
@@ -194,14 +200,14 @@ class Security(object):
         try:
             result.result()
         except ValueError:
-            print("Restart in 5 seconds.")
+            print("Restart in {} seconds.".format(self.default_timeout))
             self.finish()
-            sleep(5)
+            sleep(self.default_timeout)
             return self.start()
         except Exception as e:
-            print("Restart in 5 seconds.")
+            print("Restart in {} seconds.".format(self.default_timeout))
             self.finish()
-            sleep(5)
+            sleep(self.default_timeout)
             return self.start()
         except KeyboardInterrupt:
             self.finish()
@@ -209,6 +215,9 @@ class Security(object):
             sys.exit(1)
 
     async def start_security(self):
+        # reset blur values
+        self.blur_values = []
+
         print("Starting security process...")
         while True:
             self.current_array = self.capture_image()
@@ -259,7 +268,7 @@ class Security(object):
         self.camera = cv2.VideoCapture(self.camera_port)
         self.set_camera_detect_resolution()
         self.camera.set(cv2.CAP_PROP_AUTOFOCUS, 1)
-        sleep(5)
+        sleep(self.default_timeout)
 
         if self.debug:
             self.get_camera_settings()
@@ -272,7 +281,7 @@ class Security(object):
         except ValueError as e:
             print(e)
             self.startup_count += 1
-            sleep(5)
+            sleep(self.default_timeout)
             return self.init_camera()
 
         self.threshold = int(self.camera_detect_width * self.camera_detect_height / self.cpu_count * self.threshold_p)
@@ -312,18 +321,11 @@ class Security(object):
 
         assert isinstance(blur, type(None)) or isinstance(blur, float)
 
-        if count > 5:
-            if self.max_blur >= 1000:
-                self.max_blur -= 100
-            elif self.max_blur >= 500:
-                self.max_blur -= 50
-            elif self.max_blur >= 100:
-                self.max_blur -= 30
-            elif self.max_blur >= 50:
-                self.max_blur -= 10
-            else:
-                self.max_blur = blur
-            raise ValueError("Too many attempts to capture an initial image.\nRestart in 5 seconds.")
+        if count > self.max_camera_reload_count:
+            self.max_blur = min(self.blur_values)
+            raise ValueError(
+                "Too many attempts to capture an initial image.\nRestart in {} seconds.".format(self.default_timeout)
+            )
 
         # capture initial image
         print("Capturing initial image...")
@@ -331,10 +333,9 @@ class Security(object):
         if im is None:
             raise ValueError("Can't access to the camera :(")
 
-        print("Expected blur ratio is: {}.".format(self.max_blur))
-
         # test blur rating
         blur = cv2.Laplacian(im, cv2.CV_64F).var()
+        self.blur_values.append(blur)
         assert isinstance(blur, float)
         if blur < self.max_blur:
             print(
@@ -343,10 +344,11 @@ class Security(object):
                     blur,
                 )
             )
-            sleep(2)
+            sleep(self.default_timeout)
             return self.capture_initial_image(count=count+1, blur=blur)
 
-        print("Blur rating is: {}.".format(blur))
+        self.max_blur = min(self.blur_values)
+        print("Blur rating is: {}.".format(self.max_blur))
 
         del im
         print("Done.")
@@ -418,6 +420,7 @@ class Security(object):
         blur = cv2.Laplacian(array2, cv2.CV_64F).var()
         assert isinstance(blur, float)
         if blur < self.max_blur:
+            self.blur_values.append(blur - (blur / 20.0))
             raise ValueError(
                 "{}: Camera has lost focus. We can't analyze the initial picture. Blur rating is: {}.".format(
                     datetime.datetime.utcnow().strftime("%Y-%m-%d %I:%M:%S %p"),
