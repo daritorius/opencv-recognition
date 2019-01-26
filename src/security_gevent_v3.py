@@ -146,10 +146,10 @@ class Security(object):
         self.camera_detect_height = 72
         self.max_camera_reload_count = 5
 
-    def start(self):
-        print("This script will use {} cores of your CPU to analyze video stream.".format(self.cpu_count))
+        print("This program will use {} cores of your CPU to analyze video stream.".format(self.cpu_count))
         print("Parsing args...")
 
+    def start(self):
         try:
             # reset startup counter
             if self.startup_count:
@@ -222,12 +222,18 @@ class Security(object):
         while True:
             self.current_array = self.capture_image()
             check_motion = self.check_motion(self.start_array, self.current_array)
+            assert isinstance(check_motion, bool)
             if check_motion:
                 now = datetime.datetime.utcnow()
                 if self.movement_time is None:
                     self.movement_time = now
                 time_diff = int((now - self.movement_time).total_seconds() / 60)
-                print("{}: Alert! Movement detected!".format(now.strftime("%Y-%m-%d %I:%M:%S %p")))
+                print(
+                    "{}: Alert! Movement detected! Minimum blur ratio: {}".format(
+                        now.strftime("%Y-%m-%d %I:%M:%S %p"),
+                        self.max_blur,
+                    )
+                )
                 if time_diff >= self.time_delay:
                     self.movement_time = now
                     gevent.joinall([gevent.spawn(self.process_detection)])
@@ -479,6 +485,12 @@ class Security(object):
 
         # revert camera resolution to detect mode
         self.set_camera_detect_resolution()
+
+        # set max blur based on current image
+        blur = cv2.Laplacian(self.current_array, cv2.CV_64F).var()
+        assert isinstance(blur, float)
+        self.max_blur = blur - (blur / 10.0)
+        print("Blur ratio has been updated to: {}.".format(self.max_blur))
 
     @staticmethod
     @jit(nogil=True)
