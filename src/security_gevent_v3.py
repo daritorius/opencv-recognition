@@ -149,6 +149,17 @@ class Security(object):
         print("This program will use {} cores of your CPU to analyze video stream.".format(self.cpu_count))
         print("Parsing args...")
 
+    @staticmethod
+    def get_now_date():
+        return datetime.datetime.utcnow().strftime("%Y-%m-%d %I:%M:%S.%f %p")
+
+    def readjust_blur(self):
+        # set max blur based on current image
+        blur = cv2.Laplacian(self.current_array, cv2.CV_64F).var()
+        assert isinstance(blur, float)
+        self.max_blur = blur - (blur / 15.0)
+        print("[UTC: {}] Blur ratio has been updated to: {}.".format(self.get_now_date(), self.max_blur))
+
     def start(self):
         try:
             # reset startup counter
@@ -158,13 +169,13 @@ class Security(object):
             self.init_camera()
         except ValueError as e:
             print(e)
-            print("Restart in {} seconds.".format(self.default_timeout))
+            print("[UTC: {}] Restart in {} seconds.".format(self.get_now_date(), self.default_timeout))
             self.finish()
             sleep(self.default_timeout)
             return self.start()
         except KeyboardInterrupt:
             self.finish()
-            print("Bye :) See you next time!")
+            print("[UTC: {}] Bye :) See you next time!".format(self.get_now_date()))
             sys.exit(1)
 
         try:
@@ -178,13 +189,13 @@ class Security(object):
             _f.add_done_callback(self.motion_detection_callback)
         except ValueError as e:
             print(e)
-            print("Restart in {} seconds.".format(self.default_timeout))
+            print("[UTC: {}] Restart in {} seconds.".format(self.get_now_date(), self.default_timeout))
             self.finish()
             sleep(self.default_timeout)
             return self.start()
         except KeyboardInterrupt:
             self.finish()
-            print("Bye :) See you next time!")
+            print("[UTC: {}] Bye :) See you next time!".format(self.get_now_date()))
             sys.exit(1)
         except Exception as e:
             if self.debug:
@@ -193,32 +204,32 @@ class Security(object):
             else:
                 print(e)
             self.finish()
-            print("Bye :) See you next time!")
+            print("[UTC: {}] Bye :) See you next time!".format(self.get_now_date()))
             sys.exit(1)
 
     def motion_detection_callback(self, result):
         try:
             result.result()
         except ValueError:
-            print("Restart in {} seconds.".format(self.default_timeout))
+            print("[UTC: {}] Restart in {} seconds.".format(self.get_now_date(), self.default_timeout))
             self.finish()
             sleep(self.default_timeout)
             return self.start()
         except Exception as e:
-            print("Restart in {} seconds.".format(self.default_timeout))
+            print("[UTC: {}] Restart in {} seconds.".format(self.get_now_date(), self.default_timeout))
             self.finish()
             sleep(self.default_timeout)
             return self.start()
         except KeyboardInterrupt:
             self.finish()
-            print("Bye :) See you next time!")
+            print("[UTC: {}] Bye :) See you next time!".format(self.get_now_date()))
             sys.exit(1)
 
     async def start_security(self):
         # reset blur values
         self.blur_values = []
 
-        print("Starting security process...")
+        print("[UTC: {}] Starting security process...".format(self.get_now_date()))
         while True:
             self.current_array = self.capture_image()
             check_motion = self.check_motion(self.start_array, self.current_array)
@@ -229,9 +240,8 @@ class Security(object):
                     self.movement_time = now
                 time_diff = int((now - self.movement_time).total_seconds() / 60)
                 print(
-                    "{}: Alert! Movement detected! Minimum blur ratio: {}".format(
-                        now.strftime("%Y-%m-%d %I:%M:%S %p"),
-                        self.max_blur,
+                    "[UTC: {}] Alert! Movement detected!".format(
+                        self.get_now_date(),
                     )
                 )
                 if time_diff >= self.time_delay:
@@ -248,7 +258,7 @@ class Security(object):
                 try:
                     task.cancel()
                 except asyncio.CancelledError:
-                    print("Can't cancel task: {}.".format(task))
+                    print("[UTC: {}] Can't cancel task: {}.".format(self.get_now_date(), task))
             self.loop.stop()
             self.loop.close()
             del self.loop
@@ -266,10 +276,10 @@ class Security(object):
 
     def init_camera(self):
         # init camera
-        print("Starting camera....")
+        print("[UTC: {}] Starting camera....".format(self.get_now_date()))
 
         if self.startup_count > self.max_startup_count:
-            raise ValueError("Can't start camera")
+            raise ValueError("[UTC: {}] Can't start camera".format(self.get_now_date()))
 
         self.camera = cv2.VideoCapture(self.camera_port)
         self.set_camera_detect_resolution()
@@ -279,8 +289,12 @@ class Security(object):
         if self.debug:
             self.get_camera_settings()
 
-        print("Done.")
-        print("Camera resolution is set to {}x{}".format(self.camera_detect_width, self.camera_detect_height))
+        print("[UTC: {}] Done.".format(self.get_now_date()))
+        print("[UTC: {}] Camera resolution is set to {}x{}".format(
+            self.get_now_date(),
+            self.camera_detect_width,
+            self.camera_detect_height,
+        ))
 
         try:
             self.capture_initial_image()
@@ -292,7 +306,7 @@ class Security(object):
 
         self.threshold = int(self.camera_detect_width * self.camera_detect_height / self.cpu_count * self.threshold_p)
         self.sensitivity = int(self.camera_detect_width * self.camera_detect_height / self.cpu_count * self.sens)
-        print("Camera sensitivity is set to: {}".format(self.sensitivity))
+        print("[UTC: {}] Camera sensitivity is set to: {}".format(self.get_now_date(), self.sensitivity))
 
         self.start_array = self.current_array = self.capture_image()
 
@@ -318,7 +332,7 @@ class Security(object):
             brightness=self.camera.get(cv2.CAP_PROP_BRIGHTNESS),
             saturation=self.camera.get(cv2.CAP_PROP_SATURATION),
         )
-        print("Camera settings are set to: {}".format(self.camera_settings))
+        print("[UTC: {}] Camera settings are set to: {}".format(self.get_now_date(), self.camera_settings))
 
     def capture_initial_image(self, count=None, blur=None):
         if count is None:
@@ -330,14 +344,17 @@ class Security(object):
         if count > self.max_camera_reload_count:
             self.max_blur = min(self.blur_values)
             raise ValueError(
-                "Too many attempts to capture an initial image.\nRestart in {} seconds.".format(self.default_timeout)
+                "[UTC: {}] Too many attempts to capture an initial image.\nRestart in {} seconds.".format(
+                    self.get_now_date(),
+                    self.default_timeout,
+                )
             )
 
         # capture initial image
-        print("Capturing initial image...")
+        print("[UTC: {}] Capturing initial image...".format(self.get_now_date()))
         im = self.capture_image()
         if im is None:
-            raise ValueError("Can't access to the camera :(")
+            raise ValueError("[UTC: {}] Can't access to the camera :(".format(self.get_now_date()))
 
         # test blur rating
         blur = cv2.Laplacian(im, cv2.CV_64F).var()
@@ -345,8 +362,8 @@ class Security(object):
         assert isinstance(blur, float)
         if blur < self.max_blur:
             print(
-                "{}: Camera has lost focus. We can't analyze the initial picture. Blur rating is: {}.".format(
-                    datetime.datetime.utcnow().strftime("%Y-%m-%d %I:%M:%S %p"),
+                "[UTC: {}] Camera has lost focus. We can't analyze the initial picture. Blur rating is: {}.".format(
+                    self.get_now_date(),
                     blur,
                 )
             )
@@ -354,10 +371,10 @@ class Security(object):
             return self.capture_initial_image(count=count+1, blur=blur)
 
         self.max_blur = min(self.blur_values)
-        print("Blur rating is: {}.".format(self.max_blur))
+        print("[UTC: {}] Blur rating is: {}.".format(self.get_now_date(), self.max_blur))
 
         del im
-        print("Done.")
+        print("[UTC: {}] Done.".format(self.get_now_date()))
 
     def capture_image(self):
         try:
@@ -414,7 +431,7 @@ class Security(object):
     @jit(nogil=True)
     def check_motion(self, array1, array2):
         if not isinstance(array1, numpy.ndarray) or not isinstance(array2, numpy.ndarray):
-            raise ValueError("Expecting numpy array.")
+            raise ValueError("[UTC: {}] Expecting numpy array.".format(self.get_now_date()))
 
         # check if array2 has many black pixels
         black_pixels = self.count_black_pixels(array2)
@@ -426,13 +443,7 @@ class Security(object):
         blur = cv2.Laplacian(array2, cv2.CV_64F).var()
         assert isinstance(blur, float)
         if blur < self.max_blur:
-            self.blur_values.append(blur - (blur / 20.0))
-            raise ValueError(
-                "{}: Camera has lost focus. We can't analyze the initial picture. Blur rating is: {}.".format(
-                    datetime.datetime.utcnow().strftime("%Y-%m-%d %I:%M:%S %p"),
-                    blur,
-                )
-            )
+            self.readjust_blur()
 
         tasks = []
 
@@ -474,11 +485,11 @@ class Security(object):
         array = self.capture_image()
         assert isinstance(array, numpy.ndarray)
         if self.debug:
-            print("Preparing image for sending...")
+            print("[UTC: {}] Preparing image for sending...".format(self.get_now_date()))
 
         image_string = self.get_image_string(array)
         if self.debug:
-            print("Done")
+            print("[UTC: {}] Done.".format(self.get_now_date()))
 
         # send notification
         asyncio.ensure_future(self.send_notification(image_string), loop=self.loop)
@@ -489,8 +500,8 @@ class Security(object):
         # set max blur based on current image
         blur = cv2.Laplacian(self.current_array, cv2.CV_64F).var()
         assert isinstance(blur, float)
-        self.max_blur = blur - (blur / 10.0)
-        print("Blur ratio has been updated to: {}.".format(self.max_blur))
+        self.max_blur = blur - (blur / 15.0)
+        print("[UTC: {}] Blur ratio has been updated to: {}.".format(self.get_now_date(), self.max_blur))
 
     @staticmethod
     @jit(nogil=True)
@@ -510,7 +521,7 @@ class Security(object):
         }
 
         try:
-            print("Sending notification...")
+            print("[UTC: {}] Sending notification...".format(self.get_now_date()))
             response = requests.post(
                 self.api_host,
                 data=data,
@@ -523,7 +534,7 @@ class Security(object):
             import traceback
             print(traceback.format_exc())
         else:
-            print("Notification has been sent: {}".format(response.status_code))
+            print("[UTC: {}] Notification has been sent: {}".format(self.get_now_date(), response.status_code))
 
 
 if __name__ == "__main__":
@@ -544,9 +555,11 @@ if __name__ == "__main__":
     if args.delay is not None:
         security.time_delay = args.delay[0]
 
-    print("Done.")
-    print("Setting up delay between messages to {} minutes.".format(security.time_delay))
-    print("Done.")
+    print("[UTC: {}] Done.".format(security.get_now_date()))
+    print("[UTC: {}] Setting up delay between messages to {} minutes.".format(
+        security.get_now_date(), security.time_delay
+    ))
+    print("[UTC: {}] Done.".format(security.get_now_date()))
 
     # start security
     security.start()
