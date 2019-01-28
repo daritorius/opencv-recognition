@@ -503,6 +503,8 @@ class Security(object):
         self.max_blur = blur - (blur / 15.0)
         print("[UTC: {}] Blur ratio has been updated to: {}.".format(self.get_now_date(), self.max_blur))
 
+        print("Security object size: {} bytes.".format(sys.getsizeof(self)))
+
     @staticmethod
     @jit(nogil=True)
     def get_image_string(array):
