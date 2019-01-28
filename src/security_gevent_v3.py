@@ -146,8 +146,10 @@ class Security(object):
         self.camera_detect_height = 72
         self.max_camera_reload_count = 5
 
-        print("This program will use {} cores of your CPU to analyze video stream.".format(self.cpu_count))
-        print("Parsing args...")
+        print("[UTC: {}] This program will use {} cores of your CPU to analyze video stream.".format(
+            self.get_now_date(), self.cpu_count,
+        ))
+        print("[UTC: {}] Parsing args...".format(self.get_now_date()))
 
     @staticmethod
     def get_now_date():
