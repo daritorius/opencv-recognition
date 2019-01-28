@@ -8,6 +8,7 @@ monkey.patch_all()
 import gc
 import sys
 import cv2
+import json
 import numpy
 import signal
 import base64
@@ -55,6 +56,13 @@ def init_parser():
         type=int,
         help="Delay between notifications in minutes.",
     )
+    parser.add_argument(
+        "--video",
+        metavar="N",
+        nargs="+",
+        type=int,
+        help="Capture video.",
+    )
 
 
 class Singleton(type):
@@ -101,9 +109,16 @@ class Security(object):
         "sensitivity",
         "camera_width",
         "camera_height",
+        "camera_hq_fps",
         "camera_settings",
+        "camera_normal_fps",
+        "camera_detect_fps",
+        "camera_video_width",
+        "camera_video_height",
+        "camera_video_length",
         "camera_detect_width",
         "camera_detect_height",
+        "camera_capture_video",
         "max_camera_reload_count",
     )
 
@@ -134,22 +149,33 @@ class Security(object):
         self.api_user_email = "dm.sokoly@gmail.com"
 
         # camera config
-        self.sens = 0.1
+        self.sens = 0.09
         self.camera = None
         self.threshold = None
         self.threshold_p = 0.005
         self.sensitivity = None
         self.camera_width = 1280
         self.camera_height = 720
+        self.camera_hq_fps = 60
         self.camera_settings = dict()
-        self.camera_detect_width = 128
-        self.camera_detect_height = 72
+        self.camera_detect_fps = 10
+        self.camera_normal_fps = 30
+        self.camera_video_width = 640
+        self.camera_video_height = 480
+        self.camera_video_length = 10
+        self.camera_detect_width = 160
+        self.camera_detect_height = 90
+        self.camera_capture_video = False
         self.max_camera_reload_count = 5
 
         print("[UTC: {}] This program will use {} cores of your CPU to analyze video stream.".format(
             self.get_now_date(), self.cpu_count,
         ))
         print("[UTC: {}] Parsing args...".format(self.get_now_date()))
+        print("[UTC: {}] The initial security object size is {} bytes.".format(
+            self.get_now_date(),
+            sys.getsizeof(self),
+        ))
 
     @staticmethod
     def get_now_date():
@@ -234,6 +260,7 @@ class Security(object):
         print("[UTC: {}] Starting security process...".format(self.get_now_date()))
         while True:
             self.current_array = self.capture_image()
+            print(json.dumps(self.current_array))
             check_motion = self.check_motion(self.start_array, self.current_array)
             assert isinstance(check_motion, bool)
             if check_motion:
@@ -242,14 +269,21 @@ class Security(object):
                     self.movement_time = now
                 time_diff = int((now - self.movement_time).total_seconds() / 60)
                 print(
-                    "[UTC: {}] Alert! Movement detected!".format(
+                    "[UTC: {}] Movement detected!".format(
                         self.get_now_date(),
                     )
                 )
                 if time_diff >= self.time_delay:
                     self.movement_time = now
+
+                    # process movement
                     gevent.joinall([gevent.spawn(self.process_detection)])
                     await asyncio.sleep(self.api_request_timeout)
+
+                    # capture security video
+                    if self.camera_capture_video:
+                        self.capture_video()
+
             self.start_array = self.current_array
             await asyncio.sleep(1)
 
@@ -272,6 +306,9 @@ class Security(object):
             self.camera.release()
             self.camera = None
 
+        # remove all windows, opened by cv2
+        cv2.destroyAllWindows()
+
         # forcing garbage collector
         if len(gc.garbage):
             gc.collect()
@@ -284,19 +321,12 @@ class Security(object):
             raise ValueError("[UTC: {}] Can't start camera".format(self.get_now_date()))
 
         self.camera = cv2.VideoCapture(self.camera_port)
-        self.set_camera_detect_resolution()
         self.camera.set(cv2.CAP_PROP_AUTOFOCUS, 1)
+        self.set_camera_detect_resolution()
+        self.get_camera_settings()
         sleep(self.default_timeout)
 
-        if self.debug:
-            self.get_camera_settings()
-
         print("[UTC: {}] Done.".format(self.get_now_date()))
-        print("[UTC: {}] Camera resolution is set to {}x{}".format(
-            self.get_now_date(),
-            self.camera_detect_width,
-            self.camera_detect_height,
-        ))
 
         try:
             self.capture_initial_image()
@@ -308,24 +338,35 @@ class Security(object):
 
         self.threshold = int(self.camera_detect_width * self.camera_detect_height / self.cpu_count * self.threshold_p)
         self.sensitivity = int(self.camera_detect_width * self.camera_detect_height / self.cpu_count * self.sens)
-        print("[UTC: {}] Camera sensitivity is set to: {}".format(self.get_now_date(), self.sensitivity))
+        print("[UTC: {}] Camera sensitivity is set to {} pixels out of {} per frame.".format(
+            self.get_now_date(),
+            self.sensitivity,
+            int(self.camera_detect_width * self.camera_detect_height / self.cpu_count),
+        ))
 
         self.start_array = self.current_array = self.capture_image()
 
     def set_camera_full_resolution(self):
+        self.camera.set(cv2.CAP_PROP_FPS, self.camera_normal_fps)
         self.camera.set(cv2.CAP_PROP_FRAME_WIDTH, self.camera_width)
         self.camera.set(cv2.CAP_PROP_FRAME_HEIGHT, self.camera_height)
 
     def set_camera_detect_resolution(self):
+        self.camera.set(cv2.CAP_PROP_FPS, self.camera_detect_fps)
         self.camera.set(cv2.CAP_PROP_FRAME_WIDTH, self.camera_detect_width)
         self.camera.set(cv2.CAP_PROP_FRAME_HEIGHT, self.camera_detect_height)
+
+    def set_camera_video_resolution(self):
+        self.camera.set(cv2.CAP_PROP_FPS, self.camera_normal_fps)
+        self.camera.set(cv2.CAP_PROP_FRAME_WIDTH, self.camera_video_width)
+        self.camera.set(cv2.CAP_PROP_FRAME_HEIGHT, self.camera_video_height)
 
     def get_camera_settings(self):
         self.camera_settings = dict(
             hue=self.camera.get(cv2.CAP_PROP_HUE),
+            fps=self.camera.get(cv2.CAP_PROP_FPS),
             gain=self.camera.get(cv2.CAP_PROP_GAIN),
             test=self.camera.get(cv2.CAP_PROP_POS_MSEC),
-            frame_rate=self.camera.get(cv2.CAP_PROP_FPS),
             exposure=self.camera.get(cv2.CAP_PROP_EXPOSURE),
             contrast=self.camera.get(cv2.CAP_PROP_CONTRAST),
             width=self.camera.get(cv2.CAP_PROP_FRAME_WIDTH),
@@ -504,8 +545,44 @@ class Security(object):
         assert isinstance(blur, float)
         self.max_blur = blur - (blur / 15.0)
         print("[UTC: {}] Blur ratio has been updated to: {}.".format(self.get_now_date(), self.max_blur))
+        print("[UTC: {}] Security object size is {} bytes.".format(self.get_now_date(), sys.getsizeof(self)))
 
-        print("Security object size is {} bytes.".format(sys.getsizeof(self)))
+    def capture_video(self):
+        # set video settings for camera
+        self.set_camera_video_resolution()
+
+        # activate decoder for video
+        four_cc = cv2.VideoWriter_fourcc(*"H264")
+
+        out_file = cv2.VideoWriter(
+            "output.mp4",
+            four_cc,
+            self.camera_normal_fps,
+            (
+                self.camera_video_width,
+                self.camera_video_height,
+            ),
+        )
+
+        end_video_at = datetime.datetime.utcnow() + datetime.timedelta(seconds=self.camera_video_length)
+        while True:
+            _camera_available, frame = self.camera.read()
+
+            if _camera_available:
+                out_file.write(frame)
+            else:
+                break
+
+            if datetime.datetime.utcnow() > end_video_at:
+                break
+
+        # TODO: send frames to security host
+
+        # close file
+        out_file.release()
+
+        # set detection settings for camera
+        self.set_camera_detect_resolution()
 
     @staticmethod
     @jit(nogil=True)
@@ -558,6 +635,8 @@ if __name__ == "__main__":
         security.debug = False if not args.debug[0] else True
     if args.delay is not None:
         security.time_delay = args.delay[0]
+    if args.video is not None:
+        security.camera_capture_video = False if not args.video[0] else True
 
     print("[UTC: {}] Done.".format(security.get_now_date()))
     print("[UTC: {}] Setting up delay between messages to {} minutes.".format(
