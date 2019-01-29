@@ -260,7 +260,6 @@ class Security(object):
         print("[UTC: {}] Starting security process...".format(self.get_now_date()))
         while True:
             self.current_array = self.capture_image()
-            print(json.dumps(self.current_array))
             check_motion = self.check_motion(self.start_array, self.current_array)
             assert isinstance(check_motion, bool)
             if check_motion:
