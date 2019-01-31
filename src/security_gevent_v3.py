@@ -8,7 +8,6 @@ monkey.patch_all()
 import gc
 import sys
 import cv2
-import json
 import numpy
 import signal
 import base64
@@ -149,7 +148,7 @@ class Security(object):
         self.api_user_email = "dm.sokoly@gmail.com"
 
         # camera config
-        self.sens = 0.09
+        self.sens = 0.1
         self.camera = None
         self.threshold = None
         self.threshold_p = 0.005
@@ -166,7 +165,7 @@ class Security(object):
         self.camera_detect_width = 160
         self.camera_detect_height = 90
         self.camera_capture_video = False
-        self.max_camera_reload_count = 5
+        self.max_camera_reload_count = 3
 
         print("[UTC: {}] This program will use {} cores of your CPU to analyze video stream.".format(
             self.get_now_date(), self.cpu_count,
@@ -426,9 +425,15 @@ class Security(object):
 
     def count_black_pixels(self, array):
         assert isinstance(array, numpy.ndarray)
+
+        # get total pixels per frame
         total_pixels_count = self.camera_detect_width * self.camera_detect_height
-        non_black_pixels_count = array.any(axis=-1).sum()
-        return int((total_pixels_count - non_black_pixels_count) / total_pixels_count * 100)
+
+        # calculate black pixels per frame
+        min_color_range = numpy.array([0, 0, 0], numpy.uint8)
+        max_color_range = numpy.array([30, 30, 30], numpy.uint8)
+        black_pixels_count = cv2.countNonZero(cv2.inRange(array, min_color_range, max_color_range))
+        return int(black_pixels_count / total_pixels_count * 100)
 
     @jit(nogil=True)
     def test_images(self, i, data1, data2, start_index_width, end_index_width, start_index_height, end_index_height):
@@ -443,11 +448,8 @@ class Security(object):
         motion_detected = False
         pix_color = 1  # red=0 green=1 blue=2
         pix_changes = 0
-        black_pixels = 0
         for w in range(start_index_width, end_index_width):
             for h in range(start_index_height, end_index_height):
-                if data1[h][w].tolist() == [0, 0, 0]:
-                    black_pixels += 1
                 pix_diff = abs(int(data1[h][w][pix_color]) - int(data2[h][w][pix_color]))
                 if pix_diff >= self.threshold:
                     pix_changes += 1
@@ -457,12 +459,6 @@ class Security(object):
                 break
         if pix_changes >= self.sensitivity:
             motion_detected = True
-
-        w_diff = end_index_width - start_index_width
-        h_diff = end_index_height - start_index_height
-        check_black_pixels = black_pixels / w_diff * h_diff * 100
-        if check_black_pixels >= self.black_pixels_percent:
-            motion_detected = False
 
         self.detection_results[i] = motion_detected
 
