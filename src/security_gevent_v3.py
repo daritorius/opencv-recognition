@@ -150,7 +150,7 @@ class Security(object):
         self.api_user_email = "dm.sokoly@gmail.com"
 
         # camera config
-        self.sens = 0.1
+        self.sens = 0.09
         self.camera = None
         self.threshold = None
         self.threshold_p = 0.005
