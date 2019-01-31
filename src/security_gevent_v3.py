@@ -139,7 +139,7 @@ class Security(object):
         self.default_timeout = 2
         self.detection_results = dict()
         self.api_request_timeout = 15
-        self.black_pixels_percent = 70
+        self.black_pixels_percent = 80
         self.white_pixels_percent = 80
 
         # API credentials
