@@ -93,6 +93,7 @@ class Security(object):
         "max_startup_count",
         "api_request_timeout",
         "black_pixels_percent",
+        "white_pixels_percent",
 
         # api
         "api_key",
@@ -139,6 +140,7 @@ class Security(object):
         self.detection_results = dict()
         self.api_request_timeout = 15
         self.black_pixels_percent = 70
+        self.white_pixels_percent = 80
 
         # API credentials
         self.api_host = "https://security.mybrains.org/"
@@ -435,6 +437,18 @@ class Security(object):
         black_pixels_count = cv2.countNonZero(cv2.inRange(array, min_color_range, max_color_range))
         return int(black_pixels_count / total_pixels_count * 100)
 
+    def count_white_pixels(self, array):
+        assert isinstance(array, numpy.ndarray)
+
+        # get total pixels per frame
+        total_pixels_count = self.camera_detect_width * self.camera_detect_height
+
+        # calculate black pixels per frame
+        min_color_range = numpy.array([250, 250, 250], numpy.uint8)
+        max_color_range = numpy.array([255, 255, 255], numpy.uint8)
+        white_pixels_count = cv2.countNonZero(cv2.inRange(array, min_color_range, max_color_range))
+        return int(white_pixels_count / total_pixels_count * 100)
+
     @jit(nogil=True)
     def test_images(self, i, data1, data2, start_index_width, end_index_width, start_index_height, end_index_height):
         assert isinstance(i, int) and i >= 0
@@ -475,7 +489,26 @@ class Security(object):
         black_pixels = self.count_black_pixels(array2)
         assert isinstance(black_pixels, int)
         if black_pixels >= self.black_pixels_percent:
-            print("[UTC: {}] Frame contains too many black pixels: {}%.".format(self.get_now_date(), black_pixels))
+            print(
+                "[UTC: {}] Frame contains too many black pixels: {}% (max {}%).".format(
+                    self.get_now_date(),
+                    black_pixels,
+                    self.black_pixels_percent,
+                )
+            )
+            return False
+
+        # check if array2 has many white pixels
+        white_pixels = self.count_white_pixels(array2)
+        assert isinstance(white_pixels, int)
+        if white_pixels >= self.white_pixels_percent:
+            print(
+                "[UTC: {}] Frame contains too many white pixels: {}% (max {}%).".format(
+                    self.get_now_date(),
+                    white_pixels,
+                    self.white_pixels_percent,
+                )
+            )
             return False
 
         # test blur rating
