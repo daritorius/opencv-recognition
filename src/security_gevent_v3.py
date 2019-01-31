@@ -333,6 +333,7 @@ class Security(object):
         except ValueError as e:
             print(e)
             self.startup_count += 1
+            self.finish()
             sleep(self.default_timeout)
             return self.init_camera()
 
