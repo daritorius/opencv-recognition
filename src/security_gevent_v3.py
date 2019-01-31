@@ -387,7 +387,7 @@ class Security(object):
         if count > self.max_camera_reload_count:
             self.max_blur = min(self.blur_values)
             raise ValueError(
-                "[UTC: {}] Too many attempts to capture an initial image.\nRestart in {} seconds.".format(
+                "[UTC: {}] Too many attempts to capture an initial image. Restart in {} seconds.".format(
                     self.get_now_date(),
                     self.default_timeout,
                 )
