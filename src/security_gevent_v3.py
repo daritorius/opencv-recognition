@@ -431,7 +431,7 @@ class Security(object):
 
         # calculate black pixels per frame
         min_color_range = numpy.array([0, 0, 0], numpy.uint8)
-        max_color_range = numpy.array([30, 30, 30], numpy.uint8)
+        max_color_range = numpy.array([25, 25, 25], numpy.uint8)
         black_pixels_count = cv2.countNonZero(cv2.inRange(array, min_color_range, max_color_range))
         return int(black_pixels_count / total_pixels_count * 100)
 
@@ -475,6 +475,7 @@ class Security(object):
         black_pixels = self.count_black_pixels(array2)
         assert isinstance(black_pixels, int)
         if black_pixels >= self.black_pixels_percent:
+            print("[UTC: {}] Frame contains too many black pixels: {}%.".format(self.get_now_date(), black_pixels))
             return False
 
         # test blur rating
