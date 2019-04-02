@@ -450,12 +450,6 @@ class Security(object):
         if not isinstance(array1, numpy.ndarray) or not isinstance(array2, numpy.ndarray):
             raise ValueError("[UTC: {}] Expecting numpy array.".format(self.get_now_date()))
 
-        # test blur rating
-        # blur = cv2.Laplacian(array2, cv2.CV_64F).var()
-        # assert isinstance(blur, float)
-        # if blur < self.max_blur:
-        #     self.readjust_blur()
-
         start = time.time()
 
         try:
