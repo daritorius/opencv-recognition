@@ -88,8 +88,7 @@ class Singleton(type):
         return cls._instances[cls]
 
 
-class Security(object):
-    __metaclass__ = Singleton
+class Security(object, metaclass=Singleton):
     __slots__ = (
         # system
         "loop",
