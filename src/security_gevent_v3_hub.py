@@ -36,7 +36,7 @@ from multiprocessing import cpu_count
 
 def init_parser():
     parser.add_argument(
-        "--port",
+        "--camera",
         metavar="N",
         nargs="+",
         type=int,
@@ -62,6 +62,20 @@ def init_parser():
         nargs="+",
         type=int,
         help="Capture video.",
+    )
+    parser.add_argument(
+        "--host",
+        metavar="S",
+        nargs="+",
+        type=str,
+        help="Host of security HUB.",
+    )
+    parser.add_argument(
+        "--port",
+        metavar="S",
+        nargs="+",
+        type=str,
+        help="Port of security HUB.",
     )
 
 
@@ -102,6 +116,10 @@ class Security(object):
         "api_user_id",
         "api_user_email",
 
+        # hub
+        "hub_host",
+        "hub_port",
+
         # camera
         "sens",
         "camera",
@@ -139,7 +157,7 @@ class Security(object):
         self.max_startup_count = 10
         self.default_timeout = 2
         self.detection_results = dict()
-        self.api_request_timeout = 15
+        self.api_request_timeout = 20
         self.black_pixels_percent = 80
         self.white_pixels_percent = 80
 
@@ -149,6 +167,10 @@ class Security(object):
                        "a748229d77180093fc102ebf8bd982bcc36FE9KuyBpl1D"
         self.api_user_id = 1
         self.api_user_email = "dm.sokoly@gmail.com"
+
+        # HUB
+        self.hub_host = "127.0.0.1"
+        self.hub_port = "8000"
 
         # camera config
         self.sens = 0.09
@@ -419,7 +441,8 @@ class Security(object):
 
     def capture_image(self):
         try:
-            return self.camera.read()[1]
+            img = self.camera.read()[1]
+            return cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         except (AttributeError, IndexError):
             return None
 
@@ -437,7 +460,7 @@ class Security(object):
 
         try:
             response = requests.post(
-                "http://127.0.0.1:8000/",
+                "http://{host}:{port}".format(host=self.hub_host, port=self.hub_port),
                 data={
                     "image1": base64.b64encode(zlib.compress("{}".format(array1.tolist()).encode())),
                     "image2": base64.b64encode(zlib.compress("{}".format(array2.tolist()).encode())),
@@ -453,6 +476,15 @@ class Security(object):
                 raise ValueError("HUB is down.")
 
             if len(response.json()["errors"]):
+                for e in response.json()["errors"]:
+                    if e.get("code") is not None and e["code"] == 100:
+                        blur = cv2.Laplacian(array2, cv2.CV_64F).var()
+                        self.blur_values.append(blur)
+                        assert isinstance(blur, float)
+                    elif e.get("code") is not None and e["code"] == 101:
+                        blur = cv2.Laplacian(array2, cv2.CV_64F).var()
+                        self.blur_values.append(blur)
+                        assert isinstance(blur, float)
                 raise ValueError(response.json()["errors"])
 
             end = time.time()
@@ -508,14 +540,18 @@ if __name__ == "__main__":
     )
     init_parser()
     args = parser.parse_args()
-    if args.port is not None:
-        security.camera_port = args.port[0]
+    if args.camera is not None:
+        security.camera_port = args.camera[0]
     if args.debug is not None:
         security.debug = False if not args.debug[0] else True
     if args.delay is not None:
         security.time_delay = args.delay[0]
     if args.video is not None:
         security.camera_capture_video = False if not args.video[0] else True
+    if args.host is not None:
+        security.hub_host = args.host[0]
+    if args.port is not None:
+        security.hub_port = args.port[0]
 
     print("[UTC: {}] Done.".format(security.get_now_date()))
     print("[UTC: {}] Setting up delay between messages to {} minutes.".format(
