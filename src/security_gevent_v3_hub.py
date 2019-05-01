@@ -2,6 +2,7 @@
 from __future__ import unicode_literals
 
 import gevent
+
 from gevent import monkey
 
 monkey.patch_all()
@@ -10,10 +11,12 @@ import gc
 import sys
 import cv2
 import zlib
+import json
 import time
 import numpy
 import signal
 import base64
+import pickle
 import asyncio
 import datetime
 import argparse
@@ -441,7 +444,8 @@ class Security(object, metaclass=Singleton):
     def capture_image(self):
         try:
             img = self.camera.read()[1]
-            return cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+            # return cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+            return img
         except (AttributeError, IndexError):
             return None
 
@@ -455,8 +459,8 @@ class Security(object, metaclass=Singleton):
             response = requests.post(
                 "http://{host}:{port}".format(host=self.hub_host, port=self.hub_port),
                 data={
-                    "image1": base64.b64encode(zlib.compress("{}".format(array1.tolist()).encode())),
-                    "image2": base64.b64encode(zlib.compress("{}".format(array2.tolist()).encode())),
+                    "image1": base64.b64encode(zlib.compress(pickle.dumps(array1, protocol=0))),
+                    "image2": base64.b64encode(zlib.compress(pickle.dumps(array2, protocol=0))),
                 },
                 verify=False,
                 headers={"Connection": "close"},
