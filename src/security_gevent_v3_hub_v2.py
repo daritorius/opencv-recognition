@@ -27,7 +27,7 @@ from time import sleep
 """
     Launch program with jemalloc installed:
         - MacOS:
-            - jemalloc path: `/usr/local/Cellar/jemalloc/5.1.0/lib/libjemalloc.2.dylib`
+            - jemalloc path: `/usr/local/Cellar/jemalloc/5.2.0/lib/libjemalloc.2.dylib`
             - run program: DYLD_INSERT_LIBRARIES={path to jamalloc} python -u -B security_gevent_v3.py
         - Linux:
             - jemalloc path: `/usr/local/lib/libjemalloc.so`
@@ -340,6 +340,10 @@ class Security(object, metaclass=Singleton):
                 print("[{}] Camera UID is {}".format(self.get_now_date(), r["data"]["uid"]))
                 self.uid = r["data"]["uid"]
 
+            if r["data"]["is_notification_needed"]:
+                sleep(1)
+                self.send_full_resolution_image()
+
             if len(r["errors"]):
                 raise ValueError(r["errors"])
 
@@ -347,6 +351,36 @@ class Security(object, metaclass=Singleton):
             if self.debug:
                 print("[{}] Checked motion in {} ms".format(self.get_now_date, (end - start) * 1000))
             return r["data"]["is_motion_detected"]
+
+    def send_full_resolution_image(self):
+        # set full resolution to camera
+        self.set_camera_full_resolution()
+
+        # capture image
+        image = self.capture_image()
+
+        # set detect resolution
+        self.set_camera_detect_resolution()
+
+        if not isinstance(image, numpy.ndarray):
+            raise ValueError("[{}] Expecting numpy array.".format(self.get_now_date()))
+
+        try:
+            r_data = {
+                "image": base64.b64encode(zlib.compress(pickle.dumps(image, protocol=0))),
+            }
+            if self.uid is not None:
+                r_data["uid"] = self.uid
+            response = requests.post(
+                "http://{host}:{port}/notification".format(host=self.hub_host, port=self.hub_port),
+                data=r_data,
+                verify=False,
+                headers={"Connection": "close"},
+                timeout=self.api_request_timeout,
+            )
+            response.raise_for_status()
+        except Exception:
+            raise ValueError("HUB is down.")
 
 
 if __name__ == "__main__":
