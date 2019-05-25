@@ -104,12 +104,8 @@ class Security(object, metaclass=Singleton):
         "camera_settings",
         "camera_normal_fps",
         "camera_detect_fps",
-        "camera_video_width",
-        "camera_video_height",
-        "camera_video_length",
         "camera_detect_width",
         "camera_detect_height",
-        "camera_capture_video",
     )
 
     def __init__(self):
@@ -135,18 +131,14 @@ class Security(object, metaclass=Singleton):
 
         # camera config
         self.camera = None
-        self.camera_width = 1280
-        self.camera_height = 720
-        self.camera_hq_fps = 60
+        self.camera_width = 640
+        self.camera_height = 480
+        self.camera_hq_fps = 10
         self.camera_settings = dict()
         self.camera_detect_fps = 10
-        self.camera_normal_fps = 30
-        self.camera_video_width = 640
-        self.camera_video_height = 480
-        self.camera_video_length = 10
+        self.camera_normal_fps = 10
         self.camera_detect_width = 80
         self.camera_detect_height = 40
-        self.camera_capture_video = False
 
         print("[{}] Parsing args...".format(self.get_now_date()))
         print("[{}] The initial security object size is {} bytes.".format(
@@ -281,11 +273,6 @@ class Security(object, metaclass=Singleton):
         self.camera.set(cv2.CAP_PROP_FPS, self.camera_detect_fps)
         self.camera.set(cv2.CAP_PROP_FRAME_WIDTH, self.camera_detect_width)
         self.camera.set(cv2.CAP_PROP_FRAME_HEIGHT, self.camera_detect_height)
-
-    def set_camera_video_resolution(self):
-        self.camera.set(cv2.CAP_PROP_FPS, self.camera_normal_fps)
-        self.camera.set(cv2.CAP_PROP_FRAME_WIDTH, self.camera_video_width)
-        self.camera.set(cv2.CAP_PROP_FRAME_HEIGHT, self.camera_video_height)
 
     def get_camera_settings(self):
         self.camera_settings = dict(
