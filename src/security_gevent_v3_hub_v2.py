@@ -272,13 +272,11 @@ class Security(metaclass=Singleton):
         print("[{}] Done.".format(self.get_now_date()))
 
     def set_camera_full_resolution(self):
-        # self.camera.set(cv2.CAP_PROP_FPS, self.camera_normal_fps)
         self.camera.set(cv2.CAP_PROP_FRAME_WIDTH, self.camera_width)
         self.camera.set(cv2.CAP_PROP_FRAME_HEIGHT, self.camera_height)
         self.get_camera_settings()
 
     def set_camera_detect_resolution(self):
-        # self.camera.set(cv2.CAP_PROP_FPS, self.camera_detect_fps)
         self.camera.set(cv2.CAP_PROP_FRAME_WIDTH, self.camera_detect_width)
         self.camera.set(cv2.CAP_PROP_FRAME_HEIGHT, self.camera_detect_height)
         self.get_camera_settings()
