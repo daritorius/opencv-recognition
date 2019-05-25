@@ -257,23 +257,31 @@ class Security(metaclass=Singleton):
 
         self.camera = cv2.VideoCapture(self.camera_port)
         self.camera.set(cv2.CAP_PROP_AUTOFOCUS, 1)
+
         self.camera_width = cv2.CAP_PROP_FRAME_WIDTH
         self.camera_height = cv2.CAP_PROP_FRAME_HEIGHT
+        print(
+            "[{}] Camera initial resolution is: {}x{}".format(
+                self.get_now_date(), self.camera_width, self.camera_height
+            )
+        )
+
         self.set_camera_detect_resolution()
-        self.get_camera_settings()
         sleep(self.default_timeout)
 
         print("[{}] Done.".format(self.get_now_date()))
 
     def set_camera_full_resolution(self):
-        self.camera.set(cv2.CAP_PROP_FPS, self.camera_normal_fps)
+        # self.camera.set(cv2.CAP_PROP_FPS, self.camera_normal_fps)
         self.camera.set(cv2.CAP_PROP_FRAME_WIDTH, self.camera_width)
         self.camera.set(cv2.CAP_PROP_FRAME_HEIGHT, self.camera_height)
+        self.get_camera_settings()
 
     def set_camera_detect_resolution(self):
-        self.camera.set(cv2.CAP_PROP_FPS, self.camera_detect_fps)
+        # self.camera.set(cv2.CAP_PROP_FPS, self.camera_detect_fps)
         self.camera.set(cv2.CAP_PROP_FRAME_WIDTH, self.camera_detect_width)
         self.camera.set(cv2.CAP_PROP_FRAME_HEIGHT, self.camera_detect_height)
+        self.get_camera_settings()
 
     def get_camera_settings(self):
         self.camera_settings = dict(
@@ -344,6 +352,7 @@ class Security(metaclass=Singleton):
     def send_full_resolution_image(self):
         # set full resolution to camera
         self.set_camera_full_resolution()
+        sleep(1)
 
         # capture image
         image = self.capture_image()
