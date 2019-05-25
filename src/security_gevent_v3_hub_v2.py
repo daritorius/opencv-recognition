@@ -75,7 +75,8 @@ class Singleton(type):
         return cls._instances[cls]
 
 
-class Security(object, metaclass=Singleton):
+class Security(metaclass=Singleton):
+
     __slots__ = (
         # system
         "loop",
@@ -115,7 +116,7 @@ class Security(object, metaclass=Singleton):
         self.camera_port = 0
         self.current_array = None
         self.default_timeout = 3
-        self.api_request_timeout = 20
+        self.api_request_timeout = 15
 
         # API credentials
         self.api_host = "https://security.mybrains.org/"
@@ -353,6 +354,7 @@ class Security(object, metaclass=Singleton):
         if not isinstance(image, numpy.ndarray):
             raise ValueError("[{}] Expecting numpy array.".format(self.get_now_date()))
 
+        print("[{}] Sending full size picture.".format(self.get_now_date()))
         try:
             r_data = {
                 "image": base64.b64encode(zlib.compress(pickle.dumps(image, protocol=0))),
