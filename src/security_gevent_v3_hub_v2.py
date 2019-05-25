@@ -330,7 +330,6 @@ class Security(object, metaclass=Singleton):
                 self.uid = r["data"]["uid"]
 
             if r["data"]["is_notification_needed"]:
-                sleep(1)
                 self.send_full_resolution_image()
 
             if len(r["errors"]):
