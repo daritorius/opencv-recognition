@@ -264,7 +264,8 @@ class Security(object, metaclass=Singleton):
 
         self.camera = cv2.VideoCapture(self.camera_port)
         self.camera.set(cv2.CAP_PROP_AUTOFOCUS, 1)
-        self.get_camera_settings()
+        self.camera_width = cv2.CAP_PROP_FRAME_WIDTH
+        self.camera_height = cv2.CAP_PROP_FRAME_HEIGHT
         self.set_camera_detect_resolution()
         self.get_camera_settings()
         sleep(self.default_timeout)
