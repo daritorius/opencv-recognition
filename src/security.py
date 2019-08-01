@@ -29,11 +29,10 @@ number_processes = cpu_count()
 sensitivity = 0
 black_pixels_percent = 80
 
-api_host = "http://leksto.net/"
-user_api_key = "eb2d06b672c81a0c5ce490840b4abf7082113c9efdb4ec66f944dc3f81f52b00370c23be68e32dbd23ea47e0aa2d7a7482" \
-               "29d77180093fc102ebf8bd982bcc36FE9KuyBpl1D"
-user_id = 1
-user_email = "dm.sokoly@gmail.com"
+api_host = ""
+user_api_key = ""
+user_id = None
+user_email = ""
 base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), ''))
 base_image_path = os.path.abspath(os.path.join(os.path.dirname(__file__), 'media/security'))
 

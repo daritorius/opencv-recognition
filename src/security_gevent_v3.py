@@ -143,11 +143,10 @@ class Security(object):
         self.white_pixels_percent = 80
 
         # API credentials
-        self.api_host = "https://security.mybrains.org/"
-        self.api_key = "eb2d06b672c81a0c5ce490840b4abf7082113c9efdb4ec66f944dc3f81f52b00370c23be68e32dbd23ea47e0aa2d7" \
-                       "a748229d77180093fc102ebf8bd982bcc36FE9KuyBpl1D"
-        self.api_user_id = 1
-        self.api_user_email = "dm.sokoly@gmail.com"
+        self.api_host = ""
+        self.api_key = ""
+        self.api_user_id = None
+        self.api_user_email = ""
 
         # camera config
         self.sens = 0.09
